@@ -10,15 +10,9 @@ from json import loads
 import socket
 import threading
 
-HOST = '127.0.0.1'
-PORT = 65432  # Puerto al que AD_Registry está escuchando
-DATABASE_PATH = "drones.json"
-DATABASE_PATH_2 = "authenticated.json"
-ID_DRONE=0
-ALIAS_DRONE=""
-TOKEN_DRONE=""
-
 os.system('color')
+id : int
+alias : str = ""
 
 # Registrar un dron en AD_Registry
 def connect_to_registry(alias,host,port):
@@ -27,45 +21,24 @@ def connect_to_registry(alias,host,port):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((host, port))
                 s.sendall(alias.encode("utf-8"))
-                token = s.recv(1024).decode("utf-8")
-            return token
+                ret = s.recv(1024).decode("utf-8")
+            return ret[0], ret[1]
         except ConnectionRefusedError:
             #print("No se puede establecer conexión con AD_Registry. Reintentando en 10 segundos...")
             sleep(2)
 
 # Registrar un dron en AD_Registry
-def registrarDron(token,host,port):
-    if token != "":
-        print("\033c" + "\n")
-        print(" " + '\x1b[5;30;41m' + " El dron \"" +  alias + "\" ya está registrado " + '\x1b[0m' + "\n\n")
-        return id, token, alias
-    alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
+def registrarDron(host,port):
 
-    token = connect_to_registry(alias,host,port)
-    id = get_next_drone_id()
-    ID_DRON=id
+    global alias
+    alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
+    id, token = connect_to_registry(alias,host,port)
+    file = open(str(id)+'.txt', 'w')
+    file.write(str(token))
+    file.close()
     print("\033c" + "\n")
     print(" " + '\x1b[6;30;42m' + " Dron \"" + alias + "\" registrado correctamente con ID = " + str(id) + " " + '\x1b[0m' + "\n\n")
-    return id, token, alias
-
-
-"""
-# Unirse al espectaculo de drones
-def unirseEspectaculo(id, token, puerto_engine):
-
-    if(token==""):
-        print("\033c" + "\n")
-        print(" " + '\x1b[5;30;41m' + " No está registrado el dron " + '\x1b[0m' + "\n\n")
-        return False
-    return True
-"""
-def get_next_drone_id():
-    with open(DATABASE_PATH, 'r') as file:
-        data = json.load(file)
-
-    if not data["drones"]:
-        return 1
-    return int(data["drones"][-1]["id"]) + 1
+    return id, alias
 
 # Comprobar conexion con el Engine
 def connectionCheck(puerto_colas, idDron):
@@ -260,17 +233,7 @@ def realizarEspectaculo(puerto_colas, idDron):
     except:
         print("\033c" + "\n")
         print(" " + '\x1b[5;30;41m' + " La comunicacion por Kafka ha fallado " + '\x1b[0m' + "\n")
-
     return
-
-def buscaDronPorToken(token):
-    # Buscamos dentro de la lista de drones
-    with open('drones.json', 'r') as file:
-        data = json.load(file)
-    for dron in data['drones']:
-        if dron['token'] == token:
-            return dron['id'], dron['alias']
-    return None, None
 
 # Función para enviar token al AD_Engine para autenticación
 def authenticate_with_engine(token, engine_ip, engine_port):
@@ -280,75 +243,23 @@ def authenticate_with_engine(token, engine_ip, engine_port):
             s.sendall(token.encode("utf-8"))
             
             response = s.recv(1024).decode("utf-8")
-            if response == 'TOKEN VALIDO':
-                print("Token validado con éxito. Unido al espectáculo.")
-                with open('authenticated.json', 'r') as file:
-                    data = json.load(file)
-                id,alias=buscaDronPorToken(token)
+            if response[0]=='TOKEN VALIDO':
+                id,alias = buscaDronPorToken(token)
                 with open('authenticated.json', 'r+') as file:
-                    data = json.load(file)
-                    data["authenticated"].append({"id": id, "alias": alias, "token": token})
-                    file.seek(0)  # Volver al principio del archivo
-                    json.dump(data, file, indent=4)  # Guardar los cambios en el archivo
                 return True
             else:
-                print("Token inválido.")
                 return False
     except ConnectionRefusedError:
-        authenticate_with_engine(token, engine_ip, engine_port)
+        return False
 
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
-def unirseEspectaculo(id, token, ip_engine, puerto_engine):
-    # ... código existente ...
+def unirseEspectaculo(id, ip_engine, puerto_engine):
+    
+    token = str(input("\n\n " + colored(">", 'green') + " Introduce el token del dron: "))
     if token != "":
         if authenticate_with_engine(token, ip_engine, int(puerto_engine)):
-            print("Uniéndose al espectáculo")
-            sleep(1)
             return True
-            #realizarEspectaculo(puerto_colas)
-            #sys.exit()
     return False
-
-def receiveNumberOfDrones(host, port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.connect((host, port))
-        numberOfDrones = s.recv(1024).decode('utf-8')
-        s.close()
-        try:
-            return int(numberOfDrones)
-        except ValueError:
-            print("Exception of type ValueError")
-            return None
-    except ConnectionRefusedError:
-        print("No se puede establecer conexión con AD_Engine. Reintentando...")
-        sleep(1)
-        return receiveNumberOfDrones(host, port)
-
-def mainreceiveNumberOfDrones(host, port):
-    receiveNumberOfDrones(host, port)
-
-
-
-def numeroElementosJson(ruta_archivo_json):
-    try:
-        with open(ruta_archivo_json, 'r') as archivo:
-            datos = json.load(archivo)
-            # Asumimos que la lista de elementos está bajo la clave 'authenticated'
-            numero_de_elementos = len(datos['authenticated'])
-            return numero_de_elementos
-    except FileNotFoundError:
-        print("El archivo no fue encontrado.")
-        return None
-    except json.JSONDecodeError:
-        print("El archivo no está en formato JSON válido.")
-        return None
-    except KeyError:
-        print("La clave 'authenticated' no existe en el JSON.")
-        return None
-
-def mainNumeroElementosJson(ruta_archivo_json):
-    return mainNumeroElementosJson(ruta_archivo_json)
 
 # Parte principal del programa
 if __name__ == "__main__":
@@ -357,18 +268,11 @@ if __name__ == "__main__":
     if len(sys.argv)!=4:
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Drone.py <IP:Puerto Engine> <IP:Puerto Colas> <IP:Puerto Registry>")
+    
     ip_engine,puerto_engine = sys.argv[1].split(':')
     puerto_engine=int(puerto_engine)
     puerto_colas = sys.argv[2]
     ip_registry, puerto_registry = sys.argv[3].split(':')
-    #numberOfDrone=0
-    #numberOfDrones=receiveNumberOfDrones(ip_engine,puerto_engine)
-    #print("Number of drones received: " +str(numberOfDrones))
-    #sleep(3)
-    # Variables del dron
-    id : int
-    token : str = ""
-    alias : str = ""
 
     # Seleccion y ejecucion de acciones
     print("\033c")
@@ -380,18 +284,17 @@ if __name__ == "__main__":
         print(" " + colored("3.", 'green') + " Salir")
         opcion = int(input(" " + "\n " + colored(">", 'green') + " Opción: "))
         if opcion == 1:
-            if check == True:
-                id, token, alias = registrarDron(token,ip_registry, int(puerto_registry))
-                check=False
-            else:
-                print(" " + '\x1b[5;30;41m' + " El dron \"" +  alias + "\" ya está registrado " + '\x1b[0m' + "\n\n")
+            id, alias = registrarDron(ip_registry,int(puerto_registry))
         elif opcion == 2:
-            if unirseEspectaculo(id, token, ip_engine,puerto_engine):
-                print("Token validado con éxito. Uniéndose al espectáculo.")
-                numberOfAuthenticatedDrones=numeroElementosJson(DATABASE_PATH_2)
-                #print("Hay " + str (numberOfAuthenticatedDrones) + " drones autenticados")
+            if unirseEspectaculo(id, ip_engine,puerto_engine):
                 realizarEspectaculo(puerto_colas, id)
                 sys.exit()
+            else:
+                print("\033c")
+                print(" " + '\x1b[5;30;41m' + " Autentificación fallida " + '\x1b[0m' + "\n\n")
         elif opcion == 3:
             sys.exit()
+        else:
+            print("\033c")
+            print(" " + '\x1b[5;30;41m' + " Opción incorrecta " + '\x1b[0m' + "\n\n")
     

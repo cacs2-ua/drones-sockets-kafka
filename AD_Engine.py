@@ -12,6 +12,8 @@ import threading
 
 os.system('color')
 end = False
+start = False
+bbDD = []
 
 def is_token_valid(token):
     with open('drones.json', 'r') as file:
@@ -22,6 +24,8 @@ def is_token_valid(token):
     return False
 
 def listen_for_drones(port):
+    global start
+    global bbDD
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('0.0.0.0', port))
         s.listen()
@@ -33,6 +37,14 @@ def listen_for_drones(port):
                 token = conn.recv(1024).decode('utf-8')
                 if is_token_valid(token):
                     conn.sendall(b'TOKEN VALIDO')
+                    sleep(3)
+                    start = True
+                    producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
+                         value_serializer=lambda x: 
+                         json.dumps(x).encode('utf-8'))
+                    data = {"destino" : bbDD}
+                    producer3.send('destinos', value=data)
+                    producer3.flush()
                 else:
                     conn.sendall(b'TOKEN INVALIDO')
 
@@ -224,10 +236,16 @@ if __name__ == "__main__":
     
     file.close()
 
+    weath = threading.Thread(target=conexionWeatherDrone, args=(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather, ))
+    weath.start()
+
     #try:
+    while True:
+        if start:
+            break
+    print("PASO")
     count = 0
     mapa = []
-    conexionWeatherDrone(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather)
     iter = None
     while True:
         if count > 0:

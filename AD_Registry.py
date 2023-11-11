@@ -12,13 +12,14 @@ HOST = '127.0.0.1'
 PORT = 65432
 DATABASE_PATH = "drones.json"
 
+
 def register_drone(id, alias):
     with open(DATABASE_PATH, 'r') as file:
         data = json.load(file)
 
     for drone in data["drones"]:
         if drone["id"] == id:
-            return "Drone ya registrado"
+            return "Dron ya registrado"
 
     token = str(uuid.uuid4())
     data["drones"].append({
@@ -30,7 +31,8 @@ def register_drone(id, alias):
     with open(DATABASE_PATH, 'w') as file:
         json.dump(data, file, indent=4)
 
-    return token
+    return (id,token)
+
 
 def get_next_drone_id():
     with open(DATABASE_PATH, 'r') as file:
@@ -38,8 +40,7 @@ def get_next_drone_id():
 
     if not data["drones"]:
         return 1
-    return int(data["drones"][-1]["id"]) + 1
-
+    return int(data["drones"][-1]["id"])+1
 
 
 def conexion_registry(host,port):
@@ -54,8 +55,9 @@ def conexion_registry(host,port):
                 data = conn.recv(1024).decode("utf-8")
                 alias = data
                 id = get_next_drone_id()
-                token = register_drone(id, alias)
-                conn.sendall(token.encode("utf-8"))
+                send = register_drone(id, alias)
+                conn.sendall(send.encode("utf-8"))
+
 
 if __name__ == "__main__":
 
