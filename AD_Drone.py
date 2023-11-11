@@ -5,10 +5,10 @@ from termcolor import colored
 from kafka import TopicPartition
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
-from multiprocessing import Process
 import json
 from json import loads
 import socket
+import threading
 
 HOST = '127.0.0.1'
 PORT = 65432  # Puerto al que AD_Registry está escuchando
@@ -33,7 +33,7 @@ def connect_to_registry(alias,host,port):
             #print("No se puede establecer conexión con AD_Registry. Reintentando en 10 segundos...")
             sleep(2)
 
-
+# Registrar un dron en AD_Registry
 def registrarDron(token,host,port):
     if token != "":
         print("\033c" + "\n")
@@ -66,6 +66,10 @@ def get_next_drone_id():
     if not data["drones"]:
         return 1
     return int(data["drones"][-1]["id"]) + 1
+
+# Comprobar conexion con el Engine
+def connectionCheck(puerto_colas, idDron):
+    return
 
 # Enviar movimiento del dron al Engine
 def enviarMovimiento(pos, destino, puerto_colas, idDron):
@@ -111,7 +115,6 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
                 pos = (pos[0], (pos[1]-1))
         else:
             pos = (pos[0], pos[1])
-        
         mensaje = {"id": idDron, "posicion": pos}
         producer.send('movimientos', value=mensaje)
         producer.flush()
@@ -123,11 +126,11 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
 # Obtener posicion a la que se debe mover el dron
 def getDestino(puerto_colas, idDron):
     end = False
+    first = True
     pos = (0,0)
     try:
         consumer2 = KafkaConsumer(
             bootstrap_servers=[puerto_colas],
-            api_version=(0,11,5),
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
@@ -138,13 +141,18 @@ def getDestino(puerto_colas, idDron):
 
         while end!=True:
             for mensaje in consumer2:
+                '''
+                if first:
+                    con = threading.Thread(target=connectionCheck, args=(puerto_colas, idDron, ))
+                    con.start()
+                    first = False
+                '''
                 aux = mensaje.value
-                sleep(1)
                 if aux["destino"][0]=="Stop" and aux["destino"][1] == idDron:
                     end = True
                     break
                 elif aux["destino"][0]=="Wait" and aux["destino"][1] == idDron:
-                    sleep(1)
+                    sleep(2)
                     break
                 dest = (0,0)
                 enter = True
@@ -155,22 +163,29 @@ def getDestino(puerto_colas, idDron):
                     if a[0]==idDron:
                         dest = a[1]
                         break
-                if enter:
-                    pos = enviarMovimiento(pos, dest, puerto_colas, idDron)
-                break
-            if end==True:
-                return
+                if dest[0]!=pos[0] or dest[1]!=pos[1]:
+                    sleep(1)
+                    if enter:
+                        pos = enviarMovimiento(pos, dest, puerto_colas, idDron)
+                if end==True:
+                    break
 
     except:
         raise Exception()
 
+def comprobarMapa(mapa):
+    for i in range (0, 20):
+        for j in range (0, 20):
+            if mapa[i][j][0]!=0 and mapa[i][j][1]==False:
+                return False
+    return True
+
 # Leer y mostrar mapa del espectaculo
-def readMap(puerto_colas):
+def readMap(puerto_colas,idDron):
     end = False
     try:
         consumer = KafkaConsumer(
             bootstrap_servers=[puerto_colas],
-            api_version=(0,11,5),
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
@@ -183,7 +198,14 @@ def readMap(puerto_colas):
             for mensaje in consumer:
                 aux = mensaje.value
                 print("\033c")
-                print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
+                if(comprobarMapa(aux["mapa"])):
+                    print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
+                    if aux["completo"]==True:
+                        print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
+                    else:
+                        print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
+                else:
+                    print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
                 for i in range (0, 21):
                     if i == 0:
                         print("      ", end = "")
@@ -205,8 +227,6 @@ def readMap(puerto_colas):
                                     color = '\x1b[5;30;41m'
                                 else:
                                     color = '\x1b[6;30;42m'
-                                if aux["completo"]==True:
-                                    end = True
                                 if aux["mapa"][i-1][j-1][0]==0:
                                     print("    ", end = " ")
                                 elif aux["mapa"][i-1][j-1][0]<10:
@@ -214,10 +234,11 @@ def readMap(puerto_colas):
                                 else:
                                     print(color + " " + str(aux["mapa"][i-1][j-1][0]) + " " + '\x1b[0m', end = " ")
                     print("\n")
-                break
-            if end==True:
-                return
-
+                print('\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
+                if aux["completo"]==True:
+                    sleep(1)
+                    end = True
+                    break
     except:
         raise Exception()
 
@@ -230,13 +251,12 @@ def realizarEspectaculo(puerto_colas, idDron):
     
     try:
         
-        map = Process(target=readMap, args=(puerto_colas, ))
-        destino = Process(target=getDestino, args=(puerto_colas, idDron, ))
+        map = threading.Thread(target=readMap, args=(puerto_colas, idDron, ))
+        destino = threading.Thread(target=getDestino, args=(puerto_colas, idDron, ))
         map.start()
         destino.start()
         map.join()
         destino.join()
-        
     except:
         print("\033c" + "\n")
         print(" " + '\x1b[5;30;41m' + " La comunicacion por Kafka ha fallado " + '\x1b[0m' + "\n")
@@ -287,6 +307,7 @@ def unirseEspectaculo(id, token, ip_engine, puerto_engine):
             return True
             #realizarEspectaculo(puerto_colas)
             #sys.exit()
+    return False
 
 def receiveNumberOfDrones(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

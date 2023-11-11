@@ -8,7 +8,6 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from kafka import TopicPartition
 import socket
-import kafka
 import threading 
 
 os.system('color')
@@ -79,6 +78,7 @@ def recalcularMapa(mapa,newPos,id):
 
 def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
     end = False
+    stop = False
 
     producer = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
@@ -90,7 +90,6 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
     
     consumer = KafkaConsumer(
         bootstrap_servers=[puerto_colas],
-        api_version=(0,11,5),
         auto_offset_reset='latest',
         enable_auto_commit=True,
         group_id='drone',
@@ -145,23 +144,22 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
             producer.flush()
 
             mapa = recalcularMapa(mapa,aux["posicion"],aux["id"])
-            comp = False
-            nextIt = True
+            end = True
             if last:
-                comp = True
+                for i in range (0, 20):
+                    for j in range (0, 20):
+                        if (i!=0 or j!=0) and mapa[i][j][0]!=0:
+                            end = False
+                            break
+            else:
                 for pos in bbDD:
                     if mapa[pos[1][0]][pos[1][1]][1]==False:
-                        comp = False
-                        nextIt = False
+                        end = False
                         break
-            if nextIt:
-                end = True
-            data2 = {"mapa" : mapa, "completo" : comp}
+            data2 = {"mapa" : mapa, "completo" : end and last}
             producer2.send('posiciones', value=data2)
             producer2.flush()
             break
-        if end == True:
-            return mapa
     return mapa
 
 def conexionWeatherDrone(puerto_escucha, drones, puerto_colas, ip_weather, puerto_weather):
@@ -230,27 +228,49 @@ if __name__ == "__main__":
     count = 0
     mapa = []
     conexionWeatherDrone(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather)
-    for f in figuras["figuras"]:
-        count += 1
-        iter = f["Drones"]
-        bbDD = []
-        for i in iter:
-            coords = i["POS"].split(",")
-            bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
+    iter = None
+    while True:
+        if count > 0:
+            sleep(10)
+            file = open('figuras.json', "r+")
+            try:
+                figuras = json.load(file)
+            except ValueError:
+                print('\x1b[5;30;41m' + " Error en el formato del archivo de figuras " + '\x1b[0m')
+                sys.exit()
+            file.close()
         if count == len(figuras["figuras"]):
+            bbDD = []
+            for i in iter:
+                bbDD.append((i["ID"],(0,0)))
             for i in range (0, 20):
                 for j in range (0, 20):
                     if mapa[i][j][0]!=0:
                         mapa[i][j] = (mapa[i][j][0],False)
             mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,True,False)
-        elif count == 1:
-            mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,True,True)
+            break
         else:
-            for i in range (0, 20):
-                for j in range (0, 20):
-                    if mapa[i][j][0]!=0:
-                        mapa[i][j] = (mapa[i][j][0],False)
-            mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,False)
+            count2 = 0
+            for f in figuras["figuras"]:
+                if count2 < count:
+                    count2 += 1
+                    continue
+                count += 1
+                count2 += 1
+                iter = f["Drones"]
+                bbDD = []
+                for i in iter:
+                    coords = i["POS"].split(",")
+                    bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
+                if count == 1:
+                    mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,True)
+                else:
+                    sleep(5)
+                    for i in range (0, 20):
+                        for j in range (0, 20):
+                            if mapa[i][j][0]!=0:
+                                mapa[i][j] = (mapa[i][j][0],False)
+                    mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,False)
     '''
     except:
         print("\n " + '\x1b[5;30;41m' + " La comunicacion por Kafka ha fallado " + '\x1b[0m' + "\n")
