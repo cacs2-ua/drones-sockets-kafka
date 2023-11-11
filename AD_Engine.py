@@ -14,6 +14,7 @@ import pickle
 os.system('color')
 end = False
 start = False
+id = 0
 bbDD = []
 
 def is_token_valid(token):
@@ -37,6 +38,7 @@ def getId(token):
 def listen_for_drones(port):
     global start
     global bbDD
+    global id
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('0.0.0.0', port))
         s.listen()
@@ -134,11 +136,11 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
             for j in range (0, 20):
                 if i==0 and j==0:
                     for a in bbDD:
-                        if a[0]==1:
+                        if a[0]==id:
                             if a[1][0]==0 and a[1][1]==0:
-                                mapa[i].append((1,True))
+                                mapa[i].append((id,True))
                             else:
-                                mapa[i].append((1,False))
+                                mapa[i].append((id,False))
                             break
                 else:
                     mapa[i].append((0,False))
