@@ -2,8 +2,18 @@
     "drones": [
         {
             "id": 1,
-            "alias": "sss",
-            "token": "b9fb393e-efae-4c28-89f7-3dbc860bcf5f"
+            "alias": "Pepe",
+            "token": "f6def378-93a0-4048-8d5b-f5ad874ca1f5"
+        },
+        {
+            "id": 2,
+            "alias": "Manu",
+            "token": "378a2c71-7d90-4e57-a53d-f8da80439fad"
+        },
+        {
+            "id": 3,
+            "alias": "Hola",
+            "token": "1061c44c-aa16-428a-a3a1-945a849c140a"
         }
     ]
 }

@@ -9,6 +9,7 @@ import json
 from json import loads
 import socket
 import threading
+import pickle
 
 os.system('color')
 id : int
@@ -21,7 +22,8 @@ def connect_to_registry(alias,host,port):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((host, port))
                 s.sendall(alias.encode("utf-8"))
-                ret = s.recv(1024).decode("utf-8")
+                ret = s.recv(1024)
+                ret = pickle.loads(ret)
             return ret[0], ret[1]
         except ConnectionRefusedError:
             #print("No se puede establecer conexión con AD_Registry. Reintentando en 10 segundos...")
@@ -31,6 +33,7 @@ def connect_to_registry(alias,host,port):
 def registrarDron(host,port):
 
     global alias
+    global id
     alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
     id, token = connect_to_registry(alias,host,port)
     file = open(str(id)+'.txt', 'w')
@@ -238,14 +241,13 @@ def realizarEspectaculo(puerto_colas, idDron):
 # Función para enviar token al AD_Engine para autenticación
 def authenticate_with_engine(token, engine_ip, engine_port):
     try:
+        global id
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((engine_ip, engine_port))
             s.sendall(token.encode("utf-8"))
-            
-            response = s.recv(1024).decode("utf-8")
+            response = pickle.loads(s.recv(1024))
             if response[0]=='TOKEN VALIDO':
-                id,alias = buscaDronPorToken(token)
-                with open('authenticated.json', 'r+') as file:
+                id = response[1]
                 return True
             else:
                 return False

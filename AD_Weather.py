@@ -45,4 +45,3 @@ if __name__ == "__main__":
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Weather.py <Puerto Escucha>")
     puerto_escucha = sys.argv[1]
     
-    

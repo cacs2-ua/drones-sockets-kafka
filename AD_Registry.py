@@ -5,6 +5,7 @@ from termcolor import colored
 import socket
 import json
 import uuid
+import pickle
 
 os.system('color')
 
@@ -56,7 +57,7 @@ def conexion_registry(host,port):
                 alias = data
                 id = get_next_drone_id()
                 send = register_drone(id, alias)
-                conn.sendall(send.encode("utf-8"))
+                conn.sendall(pickle.dumps(send))
 
 
 if __name__ == "__main__":

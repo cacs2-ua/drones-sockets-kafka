@@ -8,7 +8,8 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from kafka import TopicPartition
 import socket
-import threading 
+import threading
+import pickle
 
 os.system('color')
 end = False
@@ -23,6 +24,16 @@ def is_token_valid(token):
                 return True
     return False
 
+
+def getId(token):
+    with open('drones.json', 'r') as file:
+        data = json.load(file)
+        for drone in data["drones"]:
+            if drone["token"] == token:
+                return int(drone["id"])
+    return None
+
+
 def listen_for_drones(port):
     global start
     global bbDD
@@ -36,8 +47,10 @@ def listen_for_drones(port):
                 print(f"Connection from {addr}")
                 token = conn.recv(1024).decode('utf-8')
                 if is_token_valid(token):
-                    conn.sendall(b'TOKEN VALIDO')
-                    sleep(3)
+                    id = getId(token)
+                    data = ('TOKEN VALIDO',id)
+                    conn.sendall(pickle.dumps(data))
+                    sleep(1.5)
                     start = True
                     producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
@@ -46,7 +59,8 @@ def listen_for_drones(port):
                     producer3.send('destinos', value=data)
                     producer3.flush()
                 else:
-                    conn.sendall(b'TOKEN INVALIDO')
+                    data = ('TOKEN INVALIDO',0)
+                    conn.sendall(pickle.dumps(data))
 
 def get_temperature_from_weather_server(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -243,7 +257,6 @@ if __name__ == "__main__":
     while True:
         if start:
             break
-    print("PASO")
     count = 0
     mapa = []
     iter = None
@@ -289,6 +302,7 @@ if __name__ == "__main__":
                             if mapa[i][j][0]!=0:
                                 mapa[i][j] = (mapa[i][j][0],False)
                     mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,False)
+    sys.exit()
     '''
     except:
         print("\n " + '\x1b[5;30;41m' + " La comunicacion por Kafka ha fallado " + '\x1b[0m' + "\n")
