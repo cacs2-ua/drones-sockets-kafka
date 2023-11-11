@@ -1,0 +1,314 @@
+{
+    "drones": [
+        {
+            "id": 0,
+            "alias": "drone_test\r\n",
+            "token": "6659fba3-be5f-41e4-9217-931ac64ec61a"
+        },
+        {
+            "id": 1,
+            "alias": "holus",
+            "token": "17100d5d-7495-448d-abbb-4990c38e9858"
+        },
+        {
+            "id": 2,
+            "alias": "yu",
+            "token": "ae469f97-5d61-4715-9eb8-748627139745"
+        },
+        {
+            "id": 3,
+            "alias": "223",
+            "token": "9452e899-4fd2-4527-89fc-95eeca29d753"
+        },
+        {
+            "id": 4,
+            "alias": "w",
+            "token": "1e70e165-551b-49a0-8282-c50c2c97f8d2"
+        },
+        {
+            "id": 5,
+            "alias": "oh yeah buddy",
+            "token": "c22ad57d-153a-4ad3-9737-a7747f47aa5d"
+        },
+        {
+            "id": 6,
+            "alias": "yupi",
+            "token": "352adaba-2f50-4106-8db1-f62aceda7acf"
+        },
+        {
+            "id": 7,
+            "alias": "yuju",
+            "token": "da10da0c-b378-4f7c-8860-3fce4f6ebeba"
+        },
+        {
+            "id": 8,
+            "alias": "w",
+            "token": "e9f47942-6d92-4618-8e52-58f25029be55"
+        },
+        {
+            "id": 9,
+            "alias": "w",
+            "token": "202c09e3-2927-4a3e-8972-a33ff6c8e717"
+        },
+        {
+            "id": 10,
+            "alias": "w",
+            "token": "474c4205-b1ee-4617-9cc7-f0e55bf73455"
+        },
+        {
+            "id": 11,
+            "alias": "2",
+            "token": "02dd0747-c163-49a7-a0cc-cc6903d3c7de"
+        },
+        {
+            "id": 12,
+            "alias": "w",
+            "token": "4e4d6fa0-c710-4b02-8d9b-5031a623196e"
+        },
+        {
+            "id": 13,
+            "alias": "2",
+            "token": "81bef9b0-1910-43df-bf14-a9b57a971b37"
+        },
+        {
+            "id": 14,
+            "alias": "ww",
+            "token": "e86570cf-30cd-491e-98c0-85c3860c1fd7"
+        },
+        {
+            "id": 15,
+            "alias": "www",
+            "token": "0ebff04f-38f4-4306-bf2d-48c726f0997c"
+        },
+        {
+            "id": 16,
+            "alias": "33",
+            "token": "5e5806d1-d7ff-4e3a-a123-9bd8639e877c"
+        },
+        {
+            "id": 17,
+            "alias": "ww",
+            "token": "a4282df5-b9d5-449e-a396-183a057bcf6d"
+        },
+        {
+            "id": 18,
+            "alias": "2",
+            "token": "a89aca98-4a63-4bd8-8a92-eab8a85b7cd7"
+        },
+        {
+            "id": 19,
+            "alias": "w",
+            "token": "74d54799-fce7-459e-80f3-6c0d218b8377"
+        },
+        {
+            "id": 20,
+            "alias": "2",
+            "token": "21bede48-0fdf-4bf4-8bf5-8a0aef0093a7"
+        },
+        {
+            "id": 21,
+            "alias": "w",
+            "token": "c95b88fd-d651-43fa-94da-a235bbda5a84"
+        },
+        {
+            "id": 22,
+            "alias": "yuju",
+            "token": "bdb4cdb7-647d-45f1-94b3-d9c31d0db3f0"
+        },
+        {
+            "id": 23,
+            "alias": "bye",
+            "token": "0e2c09fb-5643-4d71-b1e5-1a50e831c77f"
+        },
+        {
+            "id": 24,
+            "alias": "dragon",
+            "token": "092fc349-ee02-4dac-8ea5-deb823a87d05"
+        },
+        {
+            "id": 25,
+            "alias": "a",
+            "token": "e08a2619-8eb4-4233-baed-cec9525e826b"
+        },
+        {
+            "id": 26,
+            "alias": "a",
+            "token": "a3c3e5da-bb20-4862-990b-ffe11da774d6"
+        },
+        {
+            "id": 27,
+            "alias": "q",
+            "token": "4a42c51a-7b5a-4c60-9102-fa9081ce0b5f"
+        },
+        {
+            "id": 28,
+            "alias": "q",
+            "token": "b59563d1-9b63-433f-bc6f-bef70f0f65f9"
+        },
+        {
+            "id": 29,
+            "alias": "w",
+            "token": "fb32b5f3-4ee6-480a-a830-e5403c94b73c"
+        },
+        {
+            "id": 30,
+            "alias": "w",
+            "token": "e52885dd-a590-4b77-800d-83eede96448f"
+        },
+        {
+            "id": 31,
+            "alias": "w",
+            "token": "758592c1-2c82-4e48-adfd-c078fb1c10fb"
+        },
+        {
+            "id": 32,
+            "alias": "q",
+            "token": "08fa5a3f-fd7a-47c0-b213-b761c3bfca77"
+        },
+        {
+            "id": 33,
+            "alias": "q",
+            "token": "026cf147-6e73-413e-9fd3-aacd523e605f"
+        },
+        {
+            "id": 34,
+            "alias": "1",
+            "token": "5dcad243-6ad1-402b-a8bb-a4a76e3dfa6e"
+        },
+        {
+            "id": 35,
+            "alias": "w",
+            "token": "2febcb89-32d9-4891-bdd8-0c08c87d0533"
+        },
+        {
+            "id": 36,
+            "alias": "ww",
+            "token": "f6f6f0f1-1f83-4e45-b0f6-7b35f6447fad"
+        },
+        {
+            "id": 37,
+            "alias": "w",
+            "token": "dfa7e89b-bdd3-457d-a72d-48d40c5bf58b"
+        },
+        {
+            "id": 38,
+            "alias": "w",
+            "token": "4084459b-1c39-4ac6-850a-3b2e465d2b54"
+        },
+        {
+            "id": 39,
+            "alias": "w",
+            "token": "08a01945-f718-4139-be83-53de453d6ef2"
+        },
+        {
+            "id": 40,
+            "alias": "\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1\u00f1",
+            "token": "449af3af-81f6-4006-befc-c8e6fae769be"
+        },
+        {
+            "id": 41,
+            "alias": "queso",
+            "token": "cfd35614-6468-410f-a173-dab6ab66e80c"
+        },
+        {
+            "id": 42,
+            "alias": "q",
+            "token": "3b1a367d-a867-44ca-b1e7-a8fd846ea4d1"
+        },
+        {
+            "id": 43,
+            "alias": "boo",
+            "token": "b2605eda-ccfe-428b-8819-745a4983fab7"
+        },
+        {
+            "id": 44,
+            "alias": "yun",
+            "token": "001feb31-0d97-4802-a349-b2d204f90a64"
+        },
+        {
+            "id": 45,
+            "alias": "pu",
+            "token": "3e94bef3-bdf9-4eb5-acac-982b78666e16"
+        },
+        {
+            "id": 46,
+            "alias": "w",
+            "token": "038ea7c1-4dc9-4311-b2c2-02fb7007a968"
+        },
+        {
+            "id": 47,
+            "alias": "w",
+            "token": "5eef25e5-bba3-486e-81bb-488fc7046b80"
+        },
+        {
+            "id": 48,
+            "alias": "ttt",
+            "token": "2146862b-6011-45aa-b828-1dfd72e9f19b"
+        },
+        {
+            "id": 49,
+            "alias": "www",
+            "token": "ce4a29bc-9886-4abf-b18f-02b071bf35fd"
+        },
+        {
+            "id": 50,
+            "alias": "ew",
+            "token": "a0f0cd87-1fc4-4f40-aac3-4e139c411f36"
+        },
+        {
+            "id": 51,
+            "alias": "qu\u00f1o",
+            "token": "f46173e9-0c8b-4703-a289-d3772f0dba27"
+        },
+        {
+            "id": 52,
+            "alias": "w",
+            "token": "0ff43995-2535-40b2-a496-e2f2b69882fe"
+        },
+        {
+            "id": 53,
+            "alias": "pelea",
+            "token": "103aee2a-c086-4cb7-971f-3dd0f9b7d3ce"
+        },
+        {
+            "id": 54,
+            "alias": "wqwww",
+            "token": "6ff35086-5705-4857-a96a-c0643a7077bd"
+        },
+        {
+            "id": 55,
+            "alias": "ww",
+            "token": "a3c4ad87-b7bc-4d6d-aa12-1fdfc27ca7c2"
+        },
+        {
+            "id": 56,
+            "alias": "6",
+            "token": "387d50c3-f10f-48ef-ab00-bc946b3fd87a"
+        },
+        {
+            "id": 57,
+            "alias": "wuoah",
+            "token": "a37d2c9a-e51e-4119-85d1-89462c7f6719"
+        },
+        {
+            "id": 58,
+            "alias": "ass",
+            "token": "e8c50692-f383-4a91-89b5-ff28fd0edae2"
+        },
+        {
+            "id": 59,
+            "alias": "q",
+            "token": "17b59f11-3105-4271-811e-8417f6a7b89b"
+        },
+        {
+            "id": 60,
+            "alias": "2",
+            "token": "cd2d66c0-a814-480a-8aa6-2c1bbe3eaf08"
+        },
+        {
+            "id": 61,
+            "alias": "2",
+            "token": "1ef674d0-6ada-4164-91b6-edab8d3cd68f"
+        }
+    ]
+}

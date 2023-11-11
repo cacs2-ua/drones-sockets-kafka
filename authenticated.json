@@ -1,0 +1,54 @@
+{
+    "authenticated": [
+        {
+            "id": 0,
+            "alias": "drone_test\r\n",
+            "token": "6659fba3-be5f-41e4-9217-931ac64ec61a"
+        },
+        {
+            "id": 21,
+            "alias": "w",
+            "token": "c95b88fd-d651-43fa-94da-a235bbda5a84"
+        },
+        {
+            "id": 22,
+            "alias": "yuju",
+            "token": "bdb4cdb7-647d-45f1-94b3-d9c31d0db3f0"
+        },
+        {
+            "id": 24,
+            "alias": "dragon",
+            "token": "092fc349-ee02-4dac-8ea5-deb823a87d05"
+        },
+        {
+            "id": 26,
+            "alias": "a",
+            "token": "a3c3e5da-bb20-4862-990b-ffe11da774d6"
+        },
+        {
+            "id": 56,
+            "alias": "6",
+            "token": "387d50c3-f10f-48ef-ab00-bc946b3fd87a"
+        },
+        {
+            "id": 56,
+            "alias": "6",
+            "token": "387d50c3-f10f-48ef-ab00-bc946b3fd87a"
+        },
+        {
+            "id": 56,
+            "alias": "6",
+            "token": "387d50c3-f10f-48ef-ab00-bc946b3fd87a"
+        },
+        {
+            "id": 57,
+            "alias": "wuoah",
+            "token": "a37d2c9a-e51e-4119-85d1-89462c7f6719"
+        },
+        {
+            "id": 58,
+            "alias": "ass",
+            "token": "e8c50692-f383-4a91-89b5-ff28fd0edae2"
+        }
+    ]
+}
