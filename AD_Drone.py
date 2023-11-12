@@ -26,7 +26,7 @@ def connect_to_registry(alias,host,port):
                 ret = s.recv(1024)
                 ret = pickle.loads(ret)
             return ret[0], ret[1]
-        except ConnectionRefusedError:
+        except:
             print("\n\n" + '\x1b[5;30;41m' + " No se puede establecer conexión con AD_Registry. Reintentando en 5 segundos... " + '\x1b[0m')
             sleep(5)
 
