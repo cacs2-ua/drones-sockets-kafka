@@ -12,13 +12,12 @@ import socket
 import threading
 import pickle
 
-
 os.system('color')
 end = False
 start = False
 id = 0
 bbDD = []
-#stop_event = threading.Event()
+
 
 def is_token_valid(token):
     with open('drones.json', 'r') as file:
@@ -45,9 +44,7 @@ def listen_for_drones(port,stop_event):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('0.0.0.0', port))
         s.listen()
-        print(f"Listening on port {port}")
         while True:
-            #print("hola")
             if stop_event.is_set():
                 break
             conn, addr = s.accept()
@@ -70,6 +67,7 @@ def listen_for_drones(port,stop_event):
                     data = ('TOKEN INVALIDO',0)
                     conn.sendall(pickle.dumps(data))
 
+
 def get_temperature_from_weather_server(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -84,7 +82,6 @@ def get_temperature_from_weather_server(host, port):
             print(temperature_data)
             return None
     except ConnectionRefusedError:
-        #print("No se puede establecer conexión con AD_Weather. Reintentando...")
         return None
 
 
@@ -94,17 +91,10 @@ def get_temperature_while(ip_weather, puerto_weather,stop_event):
             break
         temperature = get_temperature_from_weather_server(ip_weather, puerto_weather)
         if temperature is not None:
-            print(f"Current temperature: {temperature}°C")
             if temperature < 0:
                 print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO.")
-                print("")
-                #break
-        #else:
-            #print("Waiting for valid temperature data...")
-
         sleep(3)
 
-    
 
 def recalcularMapa(mapa,newPos,id):
     newS = False
@@ -115,6 +105,55 @@ def recalcularMapa(mapa,newPos,id):
                 mapa[i][j] = (0,False)
     mapa[newPos[0]][newPos[1]]=(id,newS)
     return mapa
+
+
+def comprobarMapa(mapa):
+    for i in range (0, 20):
+        for j in range (0, 20):
+            if mapa[i][j][0]!=0 and mapa[i][j][1]==False:
+                return False
+    return True
+
+
+def mostrarMapa(mapa,completo):
+    print("\033c")
+    if(comprobarMapa(mapa)):
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
+        if completo==True:
+            print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
+        else:
+            print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
+    else:
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
+    for i in range (0, 21):
+        if i == 0:
+            print("      ", end = "")
+        else:
+            if i < 10:
+                print("  " + str(i), end = "  ")
+            else:
+                print(" " + str(i), end = "  ")
+
+        for j in range (0, 21):
+            if j > 0:
+                if i == 0:
+                    if j < 10:
+                        print(" " + str(j), end = "   ")
+                    else:
+                        print(str(j), end = "   ")
+                else:
+                    if mapa[j-1][i-1][1]!=True:
+                        color = '\x1b[5;30;41m'
+                    else:
+                        color = '\x1b[6;30;42m'
+                    if mapa[j-1][i-1][0]==0:
+                        print("    ", end = " ")
+                    elif mapa[j-1][i-1][0]<10:
+                        print(color + "  " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+                    else:
+                        print(color + " " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+        print("\n")
+
 
 def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
     end = False
@@ -156,6 +195,7 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
                             break
                 else:
                     mapa[i].append((0,False))
+        mostrarMapa(mapa,False)
 
     data2 = {"mapa" : mapa, "completo" : False}
     producer2.send('posiciones', value=data2)
@@ -184,6 +224,7 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
             producer.flush()
 
             mapa = recalcularMapa(mapa,aux["posicion"],aux["id"])
+
             end = True
             if last:
                 for i in range (0, 20):
@@ -196,12 +237,12 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
                     if mapa[pos[1][0]][pos[1][1]][1]==False:
                         end = False
                         break
+            mostrarMapa(mapa,(end and last))
             data2 = {"mapa" : mapa, "completo" : end and last}
             producer2.send('posiciones', value=data2)
             producer2.flush()
             break
     return mapa
-
 
 
 def conexionWeatherDrone(puerto_escucha, drones, puerto_colas, ip_weather, puerto_weather, stop_event_drone,stop_event_weather):
@@ -212,8 +253,8 @@ def conexionWeatherDrone(puerto_escucha, drones, puerto_colas, ip_weather, puert
         # Crear y empezar el hilo para obtener la temperatura desde AD_Weather
         weather_thread = threading.Thread(target=get_temperature_while, args=(ip_weather, puerto_weather,stop_event_weather))
         weather_thread.start()
-        #drone_thread.join()
-        #weather_thread.join()
+        return
+
 
 def sendNumberOfDrones(host, port,numberOfDrones):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -227,8 +268,10 @@ def sendNumberOfDrones(host, port,numberOfDrones):
     conn.send(bytes_to_send)
     conn.close()
 
+
 def mainSendNumberOfDrones(host, port,numberOfDrones):
     sendNumberOfDrones(host, port,numberOfDrones)
+
 
 def finWeather(engine_ip,engine_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -236,27 +279,23 @@ def finWeather(engine_ip,engine_port):
         mensaje="FIN"
         s.sendall(mensaje.encode('utf-8'))
 
-
-
-
 # Parte principal del programa
 if __name__ == "__main__":
     # Argumentos de linea de parametros
     if(len(sys.argv))!=5:
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas> <IP:Puerto Weather>")
-    ip_AD_Drone, puesto_escucha = sys.argv[1].split(':') # Convertir a entero
+    
+    ip_AD_Drone, puesto_escucha = sys.argv[1].split(':')
     puesto_escucha=int(puesto_escucha)
-    drones = int(sys.argv[2]) # Convertir a entero
+    drones = int(sys.argv[2])
     puerto_colas = sys.argv[3]
-    ip_weather, puerto_weather = sys.argv[4].split(':') # Separar la IP y el puerto
-    puerto_weather = int(puerto_weather) # Convertir a entero
-    #sendNumberOfDrones(ip_AD_Drone,puesto_escucha,drones)
-    #print ("Numbers of drones sent to AD_Drone")
-    #sleep(3)
-    # Leer las figuras del JSON
+    ip_weather, puerto_weather = sys.argv[4].split(':')
+    puerto_weather = int(puerto_weather)
+    
     stop_event_drone = threading.Event()
     stop_event_weather = threading.Event()
+
     print("\033c")
     print("\n Buscando figuras...")
     while True:
@@ -266,17 +305,14 @@ if __name__ == "__main__":
             break
         except IOError:
             sleep(0.5)
-    
     try:
         figuras = json.load(file)
     except ValueError:
         print('\x1b[5;30;41m' + " Error en el formato del archivo de figuras " + '\x1b[0m')
         sys.exit()
-    
     file.close()
 
-    weath = threading.Thread(target=conexionWeatherDrone, args=(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather,stop_event_drone,stop_event_weather))
-    weath.start()
+    conexionWeatherDrone(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather,stop_event_drone,stop_event_weather)
 
     #try:
     while True:
@@ -327,13 +363,12 @@ if __name__ == "__main__":
                             if mapa[i][j][0]!=0:
                                 mapa[i][j] = (mapa[i][j][0],False)
                     mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,False)
-    #sys.exit()
-    #stop_event.set()
+
     stop_event_drone.set()
     stop_event_weather.set()
-    weath.join()
     finWeather(ip_weather,puerto_weather)
-    print("ESPECTÁCULO FINALIZADO")
+    sleep(3)
+    print("\n" + '\x1b[6;30;47m' + " ESPECTÁCULO FINALIZADO " + '\x1b[0m')
     sys.exit()
     '''
     except:

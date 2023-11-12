@@ -7,10 +7,12 @@ import json
 
 os.system('color')
 
+
 def get_temperature_from_file():
     with open('weather_bd.json', 'r') as file:
         data = json.load(file)
         return data.get("temperature")
+
 
 def start_server(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -23,17 +25,15 @@ def start_server(host, port):
         respuesta=conn.recv(1024).decode('utf-8')
         if respuesta == "FIN":
             break
-        print(f"Connection from {addr}")
         
         temperature = get_temperature_from_file()
+        print(f"Connection from Engine on address: {addr}\nCurrent temperature: {temperature}°C", end="\n\n")
         
         if temperature is not None:
             conn.send(str(temperature).encode('utf-8'))
         else:
             conn.send("Temperature data not available".encode('utf-8'))
-        
         conn.close()
-
 
 # Parte principal del programa
 if __name__ == "__main__":
@@ -43,7 +43,6 @@ if __name__ == "__main__":
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Weather.py <Puerto Escucha>")
     ip_engine,puerto_engine=sys.argv[1].split(':')
     puerto_engine=int(puerto_engine)
-    start_server(ip_engine, puerto_engine) #Añadido para la comunicación entre Engine y Weather. Mejorar Después
-    print("ESPECTÁCULO FINALIZADO")
-    
-    
+
+    start_server(ip_engine, puerto_engine)
+    print("\n" + '\x1b[6;30;47m' + " ESPECTACULO FINALIZADO " + '\x1b[0m')

@@ -26,12 +26,11 @@ def connect_to_registry(alias,host,port):
                 ret = pickle.loads(ret)
             return ret[0], ret[1]
         except ConnectionRefusedError:
-            #print("No se puede establecer conexión con AD_Registry. Reintentando en 10 segundos...")
-            sleep(2)
+            print("\n\n" + '\x1b[5;30;41m' + " No se puede establecer conexión con AD_Registry. Reintentando en 5 segundos... " + '\x1b[0m')
+            sleep(5)
 
 # Registrar un dron en AD_Registry
 def registrarDron(host,port):
-
     global alias
     global id
     alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
@@ -98,7 +97,6 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
 
     except:
         raise Exception()
-        #enviarMovimiento(pos, destino, puerto_colas, idDron)
 
 # Obtener posicion a la que se debe mover el dron
 def getDestino(puerto_colas, idDron):
@@ -149,7 +147,6 @@ def getDestino(puerto_colas, idDron):
 
     except:
         raise Exception()
-        #getDestino(puerto_colas, idDron)
 
 def comprobarMapa(mapa):
     for i in range (0, 20):
@@ -201,16 +198,16 @@ def readMap(puerto_colas,idDron):
                                 else:
                                     print(str(j), end = "   ")
                             else:
-                                if aux["mapa"][i-1][j-1][1]!=True:
+                                if aux["mapa"][j-1][i-1][1]!=True:
                                     color = '\x1b[5;30;41m'
                                 else:
                                     color = '\x1b[6;30;42m'
-                                if aux["mapa"][i-1][j-1][0]==0:
+                                if aux["mapa"][j-1][i-1][0]==0:
                                     print("    ", end = " ")
-                                elif aux["mapa"][i-1][j-1][0]<10:
-                                    print(color + "  " + str(aux["mapa"][i-1][j-1][0]) + " " + '\x1b[0m', end = " ")
+                                elif aux["mapa"][j-1][i-1][0]<10:
+                                    print(color + "  " + str(aux["mapa"][j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
                                 else:
-                                    print(color + " " + str(aux["mapa"][i-1][j-1][0]) + " " + '\x1b[0m', end = " ")
+                                    print(color + " " + str(aux["mapa"][j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
                     print("\n")
                 print('\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
@@ -219,7 +216,6 @@ def readMap(puerto_colas,idDron):
                     break
     except:
         raise Exception()
-        #readMap(puerto_colas,idDron)
 
 # Desarrollo del espectaculo de drones
 def realizarEspectaculo(puerto_colas, idDron):
@@ -257,8 +253,6 @@ def authenticate_with_engine(token, engine_ip, engine_port):
     except ConnectionRefusedError:
         return False
 
-
-
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
 def unirseEspectaculo(id, ip_engine, puerto_engine):
     
@@ -268,9 +262,11 @@ def unirseEspectaculo(id, ip_engine, puerto_engine):
             return True
     return False
 
-def cerrarEspectáculo(engine_ip,engine_port):
+
+def cerrarEspectaculo(engine_ip,engine_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as signal_socket:
         signal_socket.connect((engine_ip, engine_port))
+
 
 def finRegistry(engine_ip,engine_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -290,6 +286,7 @@ if __name__ == "__main__":
     puerto_engine=int(puerto_engine)
     puerto_colas = sys.argv[2]
     ip_registry, puerto_registry = sys.argv[3].split(':')
+    puerto_registry=int(puerto_registry)
 
     # Seleccion y ejecucion de acciones
     print("\033c")
@@ -305,19 +302,16 @@ if __name__ == "__main__":
         elif opcion == 2:
             if unirseEspectaculo(id, ip_engine,puerto_engine):
                 realizarEspectaculo(puerto_colas, id)
-                cerrarEspectáculo(ip_engine,puerto_engine)
-                puerto_registry=int(puerto_registry)
-                finRegistry(ip_registry,puerto_registry)
-                print("ESPECTÁCULO FINALIZADO")
+                cerrarEspectaculo(ip_engine,puerto_engine)
+                try:
+                    finRegistry(ip_registry,puerto_registry)
+                except:
+                    pass
                 sys.exit()
             else:
                 print("\033c")
                 print(" " + '\x1b[5;30;41m' + " Autentificación fallida " + '\x1b[0m' + "\n\n")
         elif opcion == 3:
-            cerrarEspectáculo(ip_engine,puerto_engine)
-            puerto_registry=int(puerto_registry)
-            finRegistry(ip_registry,puerto_registry)
-            print("ESPECTÁCULO FINALIZADO")
             sys.exit()
         else:
             print("\033c")
