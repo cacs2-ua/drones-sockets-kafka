@@ -12,11 +12,14 @@ import socket
 import threading
 import pickle
 
+# Variables globales
 os.system('color')
 end = False
 start = False
 stop = False
+cancel = False
 id = 0
+dronCount = 0
 bbDD = []
 conexiones = []
 mapa = []
@@ -40,34 +43,38 @@ def getId(token):
     return None
 
 
-def listen_for_drones(port,stop_event,numDrones):
+def listen_for_drones(ip,port,stop_event,numDrones):
     global start
     global bbDD
     global id
     global stop
+    global dronCount
+    first = True
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('0.0.0.0', port))
+        s.bind((ip, port))
         s.listen()
-        count = 0
+        sleep(1)
         while True:
             if stop_event.is_set() or stop:
                 break
             conn, addr = s.accept()
             with conn:
                 token = conn.recv(1024).decode('utf-8')
-                if is_token_valid(token) and count<numDrones:
-                    count += 1
+                if is_token_valid(token) and dronCount<numDrones:
+                    dronCount += 1
                     id = getId(token)
                     data = ('TOKEN VALIDO',id)
                     conn.sendall(pickle.dumps(data))
-                    sleep(1.5)
+                    sleep(1)
                     start = True
-                    producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
-                        value_serializer=lambda x: 
-                        json.dumps(x).encode('utf-8'))
-                    data = {"destino" : bbDD}
-                    producer3.send('destinos', value=data)
-                    producer3.flush()
+                    if first!=True:
+                        producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
+                            value_serializer=lambda x: 
+                            json.dumps(x).encode('utf-8'))
+                        data = {"destino" : bbDD}
+                        producer3.send('destinos', value=data)
+                        producer3.flush()
+                    first = False
                 else:
                     data = ('TOKEN INVALIDO',0)
                     conn.sendall(pickle.dumps(data))
@@ -117,6 +124,7 @@ def finalizarEspectaculo():
 def get_temperature_while(ip_weather, puerto_weather,stop_event):
     global stop
     global start
+    global cancel
     while True:
         if stop_event.is_set() or stop:
             break
@@ -124,13 +132,14 @@ def get_temperature_while(ip_weather, puerto_weather,stop_event):
         if temperature is not None:
             if temperature < 0:
                 stop = True
+                cancel = True
                 if start:
                     sleep(10)
                 else:
                     sleep(3)
                 if bbDD!=[] and start:
                     finalizarEspectaculo()
-                print("\n " + '\x1b[5;30;41m' + " CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO. " + '\x1b[0m' + "\n")
+                print("\n " + '\x1b[5;30;41m' + " CONDICIONES CLIMATICAS ADVERSAS - ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
                 break
         sleep(3)
     return
@@ -140,7 +149,8 @@ def comprobarConexiones(stop_event):
     global conexiones
     global mapa
     global stop
-
+    global dronCount
+    
     while True:
         if stop_event.is_set() or stop:
             break
@@ -155,13 +165,15 @@ def comprobarConexiones(stop_event):
                             mapa[j][k] = (0,False)
                             change = True
         if change:
+            dronCount -= 1
             producer2 = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
                          json.dumps(x).encode('utf-8'))
-            data2 = {"mapa" : mapa, "completo" : False, "cancel" : stop}
+            data2 = {"mapa" : mapa, "completo" : False, "cancel" : cancel}
             producer2.send('posiciones', value=data2)
             producer2.flush()
             mostrarMapa(False)
+        sleep(0.25)
     return
 
 
@@ -204,6 +216,7 @@ def comprobarMapa():
 
 def mostrarMapa(completo):
     global mapa
+    mapaAux = mapa.copy()
     print("\033c")
     if(comprobarMapa()):
         print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
@@ -230,16 +243,16 @@ def mostrarMapa(completo):
                     else:
                         print(str(j), end = "   ")
                 else:
-                    if mapa[j-1][i-1][1]!=True:
+                    if mapaAux[j-1][i-1][1]!=True:
                         color = '\x1b[5;30;41m'
                     else:
                         color = '\x1b[6;30;42m'
-                    if mapa[j-1][i-1][0]==0:
+                    if mapaAux[j-1][i-1][0]==0:
                         print("    ", end = " ")
-                    elif mapa[j-1][i-1][0]<10:
-                        print(color + "  " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+                    elif mapaAux[j-1][i-1][0]<10:
+                        print(color + "  " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
                     else:
-                        print(color + " " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+                        print(color + " " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
         print("\n")
 
 
@@ -248,6 +261,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
     global stop
     global conexiones
     global mapa
+    global cancel
 
     producer = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
@@ -290,7 +304,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
                     mapa[i].append((0,False))
         mostrarMapa(False)
 
-    data2 = {"mapa" : mapa, "completo" : False, "cancel" : stop}
+    data2 = {"mapa" : mapa, "completo" : False, "cancel" : cancel}
     producer2.send('posiciones', value=data2)
     producer2.flush()
 
@@ -341,16 +355,16 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
                         end = False
                         break
             mostrarMapa((end and last))
-            data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : stop}
+            data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : cancel}
             producer2.send('posiciones', value=data2)
             producer2.flush()
             break
     return mapa
 
 
-def conexionWeatherDrone(puerto_escucha, drones, ip_weather, puerto_weather, stop_event_drone,stop_event_weather):
+def conexionWeatherDrone(ip_escucha,puerto_escucha, drones, ip_weather, puerto_weather, stop_event_drone,stop_event_weather):
         # Crear y empezar el hilo para escuchar a los drones
-        drone_thread = threading.Thread(target=listen_for_drones, args=(puerto_escucha,stop_event_drone,drones))
+        drone_thread = threading.Thread(target=listen_for_drones, args=(ip_escucha,puerto_escucha,stop_event_drone,drones))
         drone_thread.start()
         
         # Crear y empezar el hilo para obtener la temperatura desde AD_Weather
@@ -375,8 +389,8 @@ if __name__ == "__main__":
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas> <IP:Puerto Weather>")
     
-    ip_AD_Drone, puesto_escucha = sys.argv[1].split(':')
-    puesto_escucha=int(puesto_escucha)
+    ip_escucha, puerto_escucha = sys.argv[1].split(':')
+    puesto_escucha=int(puerto_escucha)
     drones = int(sys.argv[2])
     puerto_colas = sys.argv[3]
     ip_weather, puerto_weather = sys.argv[4].split(':')
@@ -384,7 +398,6 @@ if __name__ == "__main__":
     
     stop_event_drone = threading.Event()
     stop_event_weather = threading.Event()
-    stop_event_conexion = threading.Event()
 
     print("\033c")
     print("\n Buscando figuras...")
@@ -402,13 +415,16 @@ if __name__ == "__main__":
         sys.exit()
     file.close()
 
-    conexionWeatherDrone(puesto_escucha, drones, ip_weather, puerto_weather,stop_event_drone,stop_event_weather)
+    conexionWeatherDrone(ip_escucha,puerto_escucha, drones, ip_weather, puerto_weather,stop_event_drone,stop_event_weather)
 
     #try:
     while True:
         if start or stop:
             break
     if stop:
+        stop_event_drone.set()
+        stop_event_weather.set()
+        finWeather(ip_weather,puerto_weather)
         sys.exit()
     count = 0
     iter = None
@@ -434,6 +450,7 @@ if __name__ == "__main__":
                 for j in range (0, 20):
                     if mapa[i][j][0]!=0:
                         mapa[i][j] = (mapa[i][j][0],False)
+            stop_event_conexion = threading.Event()
             comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
             comp.start()
             mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False)
@@ -458,6 +475,7 @@ if __name__ == "__main__":
                     coords = i["POS"].split(",")
                     bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
                 if count == 1:
+                    stop_event_conexion = threading.Event()
                     comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
                     comp.start()
                     mapa = comenzarEspectaculo(puerto_colas,bbDD,False,True)
@@ -471,6 +489,7 @@ if __name__ == "__main__":
                         for j in range (0, 20):
                             if mapa[i][j][0]!=0:
                                 mapa[i][j] = (mapa[i][j][0],False)
+                    stop_event_conexion = threading.Event()
                     comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
                     comp.start()
                     mapa = comenzarEspectaculo(puerto_colas,bbDD,False,False)

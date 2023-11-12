@@ -11,6 +11,7 @@ import socket
 import threading
 import pickle
 
+# Variables globales
 os.system('color')
 id : int
 alias : str = ""
@@ -209,7 +210,7 @@ def readMap(puerto_colas,idDron):
                                 else:
                                     print(color + " " + str(aux["mapa"][j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
                     print("\n")
-                print('\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
+                print(" " + '\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
                     sleep(1)
                     if aux["cancel"]==True:
