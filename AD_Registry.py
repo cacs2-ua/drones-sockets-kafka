@@ -51,6 +51,9 @@ def conexion_registry(host,port):
             s.listen()
             print(f"Escuchando en {host}:{port}")
             conn, addr = s.accept()
+            respuesta = conn.recv(1024).decode('utf-8')
+            if respuesta == "FIN":
+                break
             with conn:
                 print(f"Conexión desde {addr}")
                 data = conn.recv(1024).decode("utf-8")
@@ -69,4 +72,5 @@ if __name__ == "__main__":
     ip_registry,puerto_escucha = sys.argv[1].split(':')
     puerto_escucha=int(puerto_escucha)
     conexion_registry(ip_registry,puerto_escucha)
+    print("ESPECTÁCULO FINALIZADO")
     

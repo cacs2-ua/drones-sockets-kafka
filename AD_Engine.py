@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 from time import sleep
 from termcolor import colored
 import json
@@ -11,11 +12,13 @@ import socket
 import threading
 import pickle
 
+
 os.system('color')
 end = False
 start = False
 id = 0
 bbDD = []
+#stop_event = threading.Event()
 
 def is_token_valid(token):
     with open('drones.json', 'r') as file:
@@ -35,7 +38,7 @@ def getId(token):
     return None
 
 
-def listen_for_drones(port):
+def listen_for_drones(port,stop_event):
     global start
     global bbDD
     global id
@@ -44,6 +47,9 @@ def listen_for_drones(port):
         s.listen()
         print(f"Listening on port {port}")
         while True:
+            #print("hola")
+            if stop_event.is_set():
+                break
             conn, addr = s.accept()
             with conn:
                 print(f"Connection from {addr}")
@@ -55,8 +61,8 @@ def listen_for_drones(port):
                     sleep(1.5)
                     start = True
                     producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
-                         value_serializer=lambda x: 
-                         json.dumps(x).encode('utf-8'))
+                        value_serializer=lambda x: 
+                        json.dumps(x).encode('utf-8'))
                     data = {"destino" : bbDD}
                     producer3.send('destinos', value=data)
                     producer3.flush()
@@ -68,6 +74,8 @@ def get_temperature_from_weather_server(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((host, port))
+        mensaje="OK"
+        s.sendall(mensaje.encode('utf-8'))
         temperature_data = s.recv(1024).decode('utf-8')
         s.close()
         try:
@@ -80,19 +88,23 @@ def get_temperature_from_weather_server(host, port):
         return None
 
 
-def get_temperature_while(ip_weather, puerto_weather):
+def get_temperature_while(ip_weather, puerto_weather,stop_event):
     while True:
+        if stop_event.is_set():
+            break
         temperature = get_temperature_from_weather_server(ip_weather, puerto_weather)
-        
         if temperature is not None:
             print(f"Current temperature: {temperature}°C")
             if temperature < 0:
                 print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO.")
+                print("")
                 #break
         #else:
             #print("Waiting for valid temperature data...")
 
         sleep(3)
+
+    
 
 def recalcularMapa(mapa,newPos,id):
     newS = False
@@ -190,17 +202,18 @@ def comenzarEspectaculo(puerto_colas,mapa,bbDD,last,first):
             break
     return mapa
 
-def conexionWeatherDrone(puerto_escucha, drones, puerto_colas, ip_weather, puerto_weather):
-    # Crear y empezar el hilo para escuchar a los drones
-    drone_thread = threading.Thread(target=listen_for_drones, args=(puerto_escucha,))
-    drone_thread.start()
-    
-    # Crear y empezar el hilo para obtener la temperatura desde AD_Weather
-    weather_thread = threading.Thread(target=get_temperature_while, args=(ip_weather, puerto_weather))
-    weather_thread.start()
 
-    #drone_thread.join()
-    #weather_thread.join()
+
+def conexionWeatherDrone(puerto_escucha, drones, puerto_colas, ip_weather, puerto_weather, stop_event_drone,stop_event_weather):
+        # Crear y empezar el hilo para escuchar a los drones
+        drone_thread = threading.Thread(target=listen_for_drones, args=(puerto_escucha,stop_event_drone))
+        drone_thread.start()
+        
+        # Crear y empezar el hilo para obtener la temperatura desde AD_Weather
+        weather_thread = threading.Thread(target=get_temperature_while, args=(ip_weather, puerto_weather,stop_event_weather))
+        weather_thread.start()
+        #drone_thread.join()
+        #weather_thread.join()
 
 def sendNumberOfDrones(host, port,numberOfDrones):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -216,6 +229,14 @@ def sendNumberOfDrones(host, port,numberOfDrones):
 
 def mainSendNumberOfDrones(host, port,numberOfDrones):
     sendNumberOfDrones(host, port,numberOfDrones)
+
+def finWeather(engine_ip,engine_port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((engine_ip, engine_port))
+        mensaje="FIN"
+        s.sendall(mensaje.encode('utf-8'))
+
+
 
 
 # Parte principal del programa
@@ -234,6 +255,8 @@ if __name__ == "__main__":
     #print ("Numbers of drones sent to AD_Drone")
     #sleep(3)
     # Leer las figuras del JSON
+    stop_event_drone = threading.Event()
+    stop_event_weather = threading.Event()
     print("\033c")
     print("\n Buscando figuras...")
     while True:
@@ -252,7 +275,7 @@ if __name__ == "__main__":
     
     file.close()
 
-    weath = threading.Thread(target=conexionWeatherDrone, args=(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather, ))
+    weath = threading.Thread(target=conexionWeatherDrone, args=(puesto_escucha, drones, puerto_colas, ip_weather, puerto_weather,stop_event_drone,stop_event_weather))
     weath.start()
 
     #try:
@@ -264,7 +287,7 @@ if __name__ == "__main__":
     iter = None
     while True:
         if count > 0:
-            sleep(10)
+            sleep(1)
             file = open('figuras.json', "r+")
             try:
                 figuras = json.load(file)
@@ -304,6 +327,13 @@ if __name__ == "__main__":
                             if mapa[i][j][0]!=0:
                                 mapa[i][j] = (mapa[i][j][0],False)
                     mapa = comenzarEspectaculo(puerto_colas,mapa,bbDD,False,False)
+    #sys.exit()
+    #stop_event.set()
+    stop_event_drone.set()
+    stop_event_weather.set()
+    weath.join()
+    finWeather(ip_weather,puerto_weather)
+    print("ESPECTÁCULO FINALIZADO")
     sys.exit()
     '''
     except:

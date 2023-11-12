@@ -20,6 +20,9 @@ def start_server(host, port):
 
     while True:
         conn, addr = s.accept()
+        respuesta=conn.recv(1024).decode('utf-8')
+        if respuesta == "FIN":
+            break
         print(f"Connection from {addr}")
         
         temperature = get_temperature_from_file()
@@ -34,14 +37,13 @@ def start_server(host, port):
 
 # Parte principal del programa
 if __name__ == "__main__":
-
-    ip_engine,puerto_engine=sys.argv[1].split(':')
-    puerto_engine=int(puerto_engine)
-    start_server(ip_engine, puerto_engine) #Añadido para la comunicación entre Engine y Weather. Mejorar Después
-    
     # Argumentos de linea de parametros
     if(len(sys.argv))!=2:
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Weather.py <Puerto Escucha>")
-    puerto_escucha = sys.argv[1]
+    ip_engine,puerto_engine=sys.argv[1].split(':')
+    puerto_engine=int(puerto_engine)
+    start_server(ip_engine, puerto_engine) #Añadido para la comunicación entre Engine y Weather. Mejorar Después
+    print("ESPECTÁCULO FINALIZADO")
+    
     

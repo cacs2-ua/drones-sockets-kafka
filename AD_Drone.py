@@ -98,6 +98,7 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
 
     except:
         raise Exception()
+        #enviarMovimiento(pos, destino, puerto_colas, idDron)
 
 # Obtener posicion a la que se debe mover el dron
 def getDestino(puerto_colas, idDron):
@@ -148,6 +149,7 @@ def getDestino(puerto_colas, idDron):
 
     except:
         raise Exception()
+        #getDestino(puerto_colas, idDron)
 
 def comprobarMapa(mapa):
     for i in range (0, 20):
@@ -217,6 +219,7 @@ def readMap(puerto_colas,idDron):
                     break
     except:
         raise Exception()
+        #readMap(puerto_colas,idDron)
 
 # Desarrollo del espectaculo de drones
 def realizarEspectaculo(puerto_colas, idDron):
@@ -254,6 +257,8 @@ def authenticate_with_engine(token, engine_ip, engine_port):
     except ConnectionRefusedError:
         return False
 
+
+
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
 def unirseEspectaculo(id, ip_engine, puerto_engine):
     
@@ -262,6 +267,16 @@ def unirseEspectaculo(id, ip_engine, puerto_engine):
         if authenticate_with_engine(token, ip_engine, int(puerto_engine)):
             return True
     return False
+
+def cerrarEspectáculo(engine_ip,engine_port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as signal_socket:
+        signal_socket.connect((engine_ip, engine_port))
+
+def finRegistry(engine_ip,engine_port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((engine_ip, engine_port))
+        mensaje="FIN"
+        s.sendall(mensaje.encode('utf-8'))
 
 # Parte principal del programa
 if __name__ == "__main__":
@@ -290,13 +305,22 @@ if __name__ == "__main__":
         elif opcion == 2:
             if unirseEspectaculo(id, ip_engine,puerto_engine):
                 realizarEspectaculo(puerto_colas, id)
+                cerrarEspectáculo(ip_engine,puerto_engine)
+                puerto_registry=int(puerto_registry)
+                finRegistry(ip_registry,puerto_registry)
+                print("ESPECTÁCULO FINALIZADO")
                 sys.exit()
             else:
                 print("\033c")
                 print(" " + '\x1b[5;30;41m' + " Autentificación fallida " + '\x1b[0m' + "\n\n")
         elif opcion == 3:
+            cerrarEspectáculo(ip_engine,puerto_engine)
+            puerto_registry=int(puerto_registry)
+            finRegistry(ip_registry,puerto_registry)
+            print("ESPECTÁCULO FINALIZADO")
             sys.exit()
         else:
             print("\033c")
             print(" " + '\x1b[5;30;41m' + " Opción incorrecta " + '\x1b[0m' + "\n\n")
+    
     
