@@ -21,6 +21,7 @@ cancel = False
 id = 0
 dronCount = 0
 bbDD = []
+completed = []
 conexiones = []
 mapa = []
 
@@ -195,12 +196,17 @@ def actualizarConexion(id):
 
 def recalcularMapa(newPos,id):
     global mapa
+    global completed
     newS = False
     for i in range (0, 20):
         for j in range (0, 20):
             if mapa[i][j][0]==id:
                 newS = mapa[i][j][1]
                 mapa[i][j] = (0,False)
+                for a in completed:
+                    if a[1][0]==i and a[1][1]==j:
+                        mapa[i][j] = (a[0],True)
+                        break
     mapa[newPos[0]][newPos[1]]=(id,newS)
     return mapa
 
@@ -262,6 +268,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
     global conexiones
     global mapa
     global cancel
+    global completed
 
     producer = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
@@ -334,6 +341,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
                 else:
                     data = {"destino" : ["Wait",aux["id"]]}
                 new = (mapa[destino[0]][destino[1]][0],True)
+                completed.append((mapa[destino[0]][destino[1]][0],(destino[0],destino[1])))
                 mapa[destino[0]][destino[1]] = new
             else:
                 data = {"destino" : bbDD}
@@ -444,6 +452,7 @@ if __name__ == "__main__":
             file.close()
         if count == len(figuras["figuras"]):
             bbDD = []
+            completed = []
             for i in iter:
                 bbDD.append((i["ID"],(0,0)))
             for i in range (0, 20):
@@ -471,6 +480,7 @@ if __name__ == "__main__":
                 count2 += 1
                 iter = f["Drones"]
                 bbDD = []
+                completed = []
                 for i in iter:
                     coords = i["POS"].split(",")
                     bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
