@@ -15,10 +15,6 @@ def register_drone(id, alias):
     with open(DATABASE_PATH, 'r') as file:
         data = json.load(file)
 
-    for drone in data["drones"]:
-        if drone["id"] == id:
-            return "Dron ya registrado"
-
     token = str(uuid.uuid4())
     data["drones"].append({
         "id": id,
@@ -53,8 +49,7 @@ def conexion_registry(host,port):
                 break
             with conn:
                 print(f"Conexión desde {addr}")
-                data = conn.recv(1024).decode("utf-8")
-                alias = data
+                alias = respuesta
                 id = get_next_drone_id()
                 send = register_drone(id, alias)
                 conn.sendall(pickle.dumps(send))
@@ -68,7 +63,7 @@ if __name__ == "__main__":
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Registry.py <Puerto Escucha>\n")
     ip_registry,puerto_escucha = sys.argv[1].split(':')
     puerto_escucha=int(puerto_escucha)
-    
+
     conexion_registry(ip_registry,puerto_escucha)
     print("\n" + '\x1b[6;30;47m' + " ESPECTACULO FINALIZADO " + '\x1b[0m')
     

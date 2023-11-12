@@ -11,14 +11,14 @@ os.system('color')
 def get_temperature_from_file():
     with open('weather_bd.json', 'r') as file:
         data = json.load(file)
-        return data.get("temperature")
+        return data.get("Temperatura")
 
 
 def start_server(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((host, port))
     s.listen(1)
-    print(f"Listening on {host}:{port}...")
+    print(f"Escuchando en {host}:{port}...")
 
     while True:
         conn, addr = s.accept()
@@ -27,12 +27,12 @@ def start_server(host, port):
             break
         
         temperature = get_temperature_from_file()
-        print(f"Connection from Engine on address: {addr}\nCurrent temperature: {temperature}°C", end="\n\n")
+        print(f"Conexion con Engine desde: {addr}\nTemperatura actual: {temperature}°C", end="\n\n")
         
         if temperature is not None:
             conn.send(str(temperature).encode('utf-8'))
         else:
-            conn.send("Temperature data not available".encode('utf-8'))
+            conn.send("Informacion de temperatura no accesible".encode('utf-8'))
         conn.close()
 
 # Parte principal del programa

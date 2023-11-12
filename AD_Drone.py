@@ -212,6 +212,8 @@ def readMap(puerto_colas,idDron):
                 print('\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
                     sleep(1)
+                    if aux["cancel"]==True:
+                        print(" " + '\x1b[5;30;41m' + " El espectaculo ha sido cancelado. " + '\x1b[0m' + "\n\n")
                     end = True
                     break
     except:
@@ -264,13 +266,16 @@ def unirseEspectaculo(id, ip_engine, puerto_engine):
 
 
 def cerrarEspectaculo(engine_ip,engine_port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as signal_socket:
-        signal_socket.connect((engine_ip, engine_port))
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as signal_socket:
+            signal_socket.connect((engine_ip, engine_port))
+    except:
+        return
 
 
-def finRegistry(engine_ip,engine_port):
+def finRegistry(ip_registry,puerto_registry):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((engine_ip, engine_port))
+        s.connect((ip_registry, puerto_registry))
         mensaje="FIN"
         s.sendall(mensaje.encode('utf-8'))
 
@@ -298,7 +303,7 @@ if __name__ == "__main__":
         print(" " + colored("3.", 'green') + " Salir")
         opcion = int(input(" " + "\n " + colored(">", 'green') + " Opción: "))
         if opcion == 1:
-            id, alias = registrarDron(ip_registry,int(puerto_registry))
+            id, alias = registrarDron(ip_registry,puerto_registry)
         elif opcion == 2:
             if unirseEspectaculo(id, ip_engine,puerto_engine):
                 realizarEspectaculo(puerto_colas, id)
