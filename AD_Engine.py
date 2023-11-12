@@ -51,7 +51,7 @@ def listen_for_drones(ip,port,stop_event,numDrones):
     global dronCount
     first = True
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((ip, port))
+        s.bind((ip,port))
         s.listen()
         sleep(1)
         while True:
@@ -390,7 +390,7 @@ if __name__ == "__main__":
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas> <IP:Puerto Weather>")
     
     ip_escucha, puerto_escucha = sys.argv[1].split(':')
-    puesto_escucha=int(puerto_escucha)
+    puerto_escucha=int(puerto_escucha)
     drones = int(sys.argv[2])
     puerto_colas = sys.argv[3]
     ip_weather, puerto_weather = sys.argv[4].split(':')
