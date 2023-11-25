@@ -42,13 +42,13 @@ def conexion_registry(host,port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((host, port))
             s.listen()
-            print(f"Escuchando en {host}:{port}")
+            print(f" Escuchando en {host}:{port}")
             conn, addr = s.accept()
             respuesta = conn.recv(1024).decode('utf-8')
             if respuesta=="FIN":
                 break
             with conn:
-                print(f"Conexión desde {addr}")
+                print(f" Conexión desde {addr}")
                 alias = respuesta
                 id = get_next_drone_id()
                 send = register_drone(id, alias)
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Registry.py <Puerto Escucha>\n")
     ip_registry,puerto_escucha = sys.argv[1].split(':')
     puerto_escucha=int(puerto_escucha)
-
+    print("\033c")
     conexion_registry(ip_registry,puerto_escucha)
-    print("\n" + '\x1b[6;30;47m' + " ESPECTACULO FINALIZADO " + '\x1b[0m')
+    print("\n " + '\x1b[6;30;47m' + " ESPECTACULO FINALIZADO " + '\x1b[0m')
     

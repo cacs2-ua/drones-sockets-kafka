@@ -45,17 +45,17 @@ def getId(token):
 
 
 def listen_for_drones(ip,port,stop_event,numDrones):
-    global start
-    global bbDD
-    global id
-    global stop
-    global dronCount
     first = True
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((ip,port))
         s.listen()
         sleep(1)
         while True:
+            global start
+            global bbDD
+            global id
+            global stop
+            global dronCount
             if stop_event.is_set() or stop:
                 break
             conn, addr = s.accept()
@@ -113,9 +113,9 @@ def finalizarEspectaculo():
             if mapa[i][j][0]!=0:
                 mapa[i][j] = (mapa[i][j][0],False)
     stop = False
-    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
+    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
     comp.start()
-    mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False)
+    mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
     stop_event_conexion.set()
     conexiones = []
     stop = True
@@ -123,10 +123,10 @@ def finalizarEspectaculo():
 
 
 def get_temperature_while(ip_weather, puerto_weather,stop_event):
-    global stop
-    global start
-    global cancel
     while True:
+        global stop
+        global start
+        global cancel
         if stop_event.is_set() or stop:
             break
         temperature = get_temperature_from_weather_server(ip_weather, puerto_weather)
@@ -146,34 +146,93 @@ def get_temperature_while(ip_weather, puerto_weather,stop_event):
     return
 
 
-def comprobarConexiones(stop_event):
-    global conexiones
+def comprobarMapa(mapa):
+    for i in range (0, 20):
+        for j in range (0, 20):
+            if mapa[i][j][0]!=0 and mapa[i][j][1]==False:
+                return False
+    return True
+
+
+def mostrarMapa(completo,dest):
     global mapa
-    global stop
     global dronCount
-    
+    mapaAux = mapa.copy()
+    print("\033c")
+    if(comprobarMapa(mapaAux)):
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
+        if completo==True:
+            print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
+        else:
+            if dronCount<len(dest):
+                print("  " + '\x1b[6;30;47m' + " ESPERANDO DRONES... " + '\x1b[0m' + "\n")
+            else:
+                print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
+    else:
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
+    for i in range (0, 21):
+        if i == 0:
+            print("      ", end = "")
+        else:
+            if i < 10:
+                print("  " + str(i), end = "  ")
+            else:
+                print(" " + str(i), end = "  ")
+
+        for j in range (0, 21):
+            if j > 0:
+                if i == 0:
+                    if j < 10:
+                        print(" " + str(j), end = "   ")
+                    else:
+                        print(str(j), end = "   ")
+                else:
+                    if mapaAux[j-1][i-1][1]!=True:
+                        color = '\x1b[5;30;41m'
+                    else:
+                        color = '\x1b[6;30;42m'
+                    if mapaAux[j-1][i-1][0]==0:
+                        print("    ", end = " ")
+                    elif mapaAux[j-1][i-1][0]<10:
+                        print(color + "  " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+                    else:
+                        print(color + " " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+        print("\n")
+
+
+def comprobarConexiones(stop_event,dest):
     while True:
+        global dronCount
+        global conexiones
+        global mapa
+        global stop
+        global bbDD
+        count = 0
+        auxDest = bbDD.copy()
         if stop_event.is_set() or stop:
             break
         change = False
         timeNow = time.time()
         con = conexiones.copy()
+        '''
         for i in range (0, len(con)):
             if (timeNow-con[i][1])>3:
                 for j in range (0, 20):
                     for k in range (0, 20):
                         if mapa[j][k][0]==con[i][0]:
                             mapa[j][k] = (0,False)
+                            count = count + 1
                             change = True
         if change:
-            dronCount -= 1
+            dronCount = dronCount - count
             producer2 = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
                          json.dumps(x).encode('utf-8'))
             data2 = {"mapa" : mapa, "completo" : False, "cancel" : cancel}
             producer2.send('posiciones', value=data2)
             producer2.flush()
-            mostrarMapa(False)
+            mostrarMapa(False,auxDest)
+        '''
         sleep(0.25)
     return
 
@@ -211,62 +270,10 @@ def recalcularMapa(newPos,id):
     return mapa
 
 
-def comprobarMapa():
-    global mapa
-    for i in range (0, 20):
-        for j in range (0, 20):
-            if mapa[i][j][0]!=0 and mapa[i][j][1]==False:
-                return False
-    return True
-
-
-def mostrarMapa(completo):
-    global mapa
-    mapaAux = mapa.copy()
-    print("\033c")
-    if(comprobarMapa()):
-        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
-        if completo==True:
-            print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
-        else:
-            print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
-    else:
-        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
-    for i in range (0, 21):
-        if i == 0:
-            print("      ", end = "")
-        else:
-            if i < 10:
-                print("  " + str(i), end = "  ")
-            else:
-                print(" " + str(i), end = "  ")
-
-        for j in range (0, 21):
-            if j > 0:
-                if i == 0:
-                    if j < 10:
-                        print(" " + str(j), end = "   ")
-                    else:
-                        print(str(j), end = "   ")
-                else:
-                    if mapaAux[j-1][i-1][1]!=True:
-                        color = '\x1b[5;30;41m'
-                    else:
-                        color = '\x1b[6;30;42m'
-                    if mapaAux[j-1][i-1][0]==0:
-                        print("    ", end = " ")
-                    elif mapaAux[j-1][i-1][0]<10:
-                        print(color + "  " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
-                    else:
-                        print(color + " " + str(mapaAux[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
-        print("\n")
-
-
-def comenzarEspectaculo(puerto_colas,bbDD,last,first):
+def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
     end = False
     global stop
     global conexiones
-    global mapa
     global cancel
     global completed
 
@@ -289,7 +296,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
     consumer.seek_to_end(goTo)
 
     if stop:
-        return mapa
+        return auxMap
 
     data = {"destino" : bbDD}
     producer.send('destinos', value=data)
@@ -297,28 +304,31 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
     
     if first:
         for i in range (0, 20):
-            mapa.append([])
+            auxMap.append([])
             for j in range (0, 20):
                 if i==0 and j==0:
                     for a in bbDD:
                         if a[0]==id:
                             if a[1][0]==0 and a[1][1]==0:
-                                mapa[i].append((id,True))
+                                auxMap[i].append((id,True))
                             else:
-                                mapa[i].append((id,False))
+                                auxMap[i].append((id,False))
                             break
                 else:
-                    mapa[i].append((0,False))
-        mostrarMapa(False)
+                    auxMap[i].append((0,False))
+        mostrarMapa(False,bbDD)
 
-    data2 = {"mapa" : mapa, "completo" : False, "cancel" : cancel}
+    data2 = {"mapa" : auxMap, "completo" : False, "cancel" : cancel}
     producer2.send('posiciones', value=data2)
     producer2.flush()
 
     while end!=True:
         if stop:
-            return mapa
+            return auxMap
         for mensaje in consumer:
+            global mapa
+            mapa = auxMap
+            sleep(0.3)
             if stop:
                 return mapa
             aux = mensaje.value
@@ -340,8 +350,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
                     data = {"destino" : ["Stop",aux["id"]]}
                 else:
                     data = {"destino" : ["Wait",aux["id"]]}
-                new = (mapa[destino[0]][destino[1]][0],True)
-                completed.append((mapa[destino[0]][destino[1]][0],(destino[0],destino[1])))
+                new = (aux["id"],True)
+                completed.append((aux["id"],destino))
                 mapa[destino[0]][destino[1]] = new
             else:
                 data = {"destino" : bbDD}
@@ -362,7 +372,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first):
                     if mapa[pos[1][0]][pos[1][1]][1]==False:
                         end = False
                         break
-            mostrarMapa((end and last))
+            mostrarMapa((end and last),bbDD)
             data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : cancel}
             producer2.send('posiciones', value=data2)
             producer2.flush()
@@ -460,9 +470,9 @@ if __name__ == "__main__":
                     if mapa[i][j][0]!=0:
                         mapa[i][j] = (mapa[i][j][0],False)
             stop_event_conexion = threading.Event()
-            comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
+            comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
             comp.start()
-            mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False)
+            mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
             if stop:
                 sys.exit()
             stop_event_conexion.set()
@@ -486,9 +496,9 @@ if __name__ == "__main__":
                     bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
                 if count == 1:
                     stop_event_conexion = threading.Event()
-                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
+                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
                     comp.start()
-                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,True)
+                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,True,mapa)
                     if stop:
                         sys.exit()
                     stop_event_conexion.set()
@@ -500,9 +510,9 @@ if __name__ == "__main__":
                             if mapa[i][j][0]!=0:
                                 mapa[i][j] = (mapa[i][j][0],False)
                     stop_event_conexion = threading.Event()
-                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion, ))
+                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
                     comp.start()
-                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,False)
+                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,False,mapa)
                     if stop:
                         sys.exit()
                     stop_event_conexion.set()

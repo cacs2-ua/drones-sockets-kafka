@@ -103,10 +103,13 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
 def getDestino(puerto_colas, idDron):
     end = False
     first = True
+    timeout = False
     pos = (0,0)
+    dest = (0,0)
     try:
         consumer2 = KafkaConsumer(
             bootstrap_servers=[puerto_colas],
+            consumer_timeout_ms=5000,
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
@@ -116,18 +119,28 @@ def getDestino(puerto_colas, idDron):
         consumer2.seek_to_end(goTo)
 
         while end!=True:
+            if first==True:
+                first = False
+            else:
+                if timeout:
+                    timeout = False
+                else:
+                    pos = enviarMovimiento(pos, pos, puerto_colas, idDron)
             for mensaje in consumer2:
+                aux = mensaje.value
                 '''
                 if first:
                     con = threading.Thread(target=connectionCheck, args=(puerto_colas, idDron, ))
                     con.start()
                     first = False
                 '''
-                aux = mensaje.value
                 if aux["destino"][0]=="Stop" and aux["destino"][1] == idDron:
                     end = True
+                    timeout = True
+                    print("STOOOOOP: ",pos,aux["destino"],idDron)
                     break
-                elif aux["destino"][0]=="Wait" and aux["destino"][1] == idDron:
+                elif aux["destino"][0]=="Wait" and aux["destino"][1]==idDron:
+                    timeout = True
                     sleep(2)
                     break
                 dest = (0,0)
@@ -219,6 +232,7 @@ def readMap(puerto_colas,idDron):
                     break
     except:
         raise Exception()
+    
 
 # Desarrollo del espectaculo de drones
 def realizarEspectaculo(puerto_colas, idDron):
