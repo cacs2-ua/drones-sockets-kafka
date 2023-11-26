@@ -15,6 +15,7 @@ import pickle
 os.system('color')
 id : int
 alias : str = ""
+DATABASE_PATH = "drones.json"
 
 # Registrar un dron en AD_Registry
 def connect_to_registry(alias,host,port):
@@ -267,7 +268,8 @@ def authenticate_with_engine(token, engine_ip, engine_port):
                 return True
             else:
                 return False
-    except ConnectionRefusedError:
+    except:
+        authenticate_with_engine(token, engine_ip, engine_port)
         return False
 
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
@@ -294,14 +296,54 @@ def finRegistry(ip_registry,puerto_registry):
         mensaje="FIN"
         s.sendall(mensaje.encode('utf-8'))
 
+def recbeToken(host,port):
+     while(True):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+            s.listen()
+
 # Parte principal del programa
 if __name__ == "__main__":
 
     # Argumentos de linea de parametros
+    if len(sys.argv)==5:
+        if sys.argv[4] != "-d":
+            print("ERROR. El quinto argumento, si existe, ha de ser -d")
+            sys.exit()
+        ip_engine,puerto_engine = sys.argv[1].split(':')
+        puerto_engine=int(puerto_engine)
+        puerto_colas = sys.argv[2]
+        ip_registry, puerto_registry = sys.argv[3].split(':')
+        puerto_registry=int(puerto_registry)
+        with open(DATABASE_PATH, 'r') as file:
+            data = json.load(file)
+        
+        if not data["drones"]:
+            #sleep(1)
+            alias="d1"
+        else:
+            #sleep(1)
+            alias="d" + str(int(data["drones"][-1]["id"])+1)
+        #sleep(2)
+        id,token=connect_to_registry(alias,ip_registry,puerto_registry)
+        #sleep(2)
+        if authenticate_with_engine(token, ip_engine, int(puerto_engine)):
+            realizarEspectaculo(puerto_colas, id)
+            cerrarEspectaculo(ip_engine,puerto_engine)
+            try:
+                finRegistry(ip_registry,puerto_registry)
+            except:
+                pass
+            sys.exit()
+        print("adios")
+        sys.exit()
+        
+
+
     if len(sys.argv)!=4:
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Drone.py <IP:Puerto Engine> <IP:Puerto Colas> <IP:Puerto Registry>")
-    
+
     ip_engine,puerto_engine = sys.argv[1].split(':')
     puerto_engine=int(puerto_engine)
     puerto_colas = sys.argv[2]
