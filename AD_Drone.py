@@ -154,7 +154,7 @@ def getDestino(puerto_colas, idDron):
                         dest = a[1]
                         break
                 if dest[0]!=pos[0] or dest[1]!=pos[1]:
-                    sleep(1)
+                    sleep(0.5)
                     if enter:
                         pos = enviarMovimiento(pos, dest, puerto_colas, idDron)
                 if end==True:

@@ -328,7 +328,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
         for mensaje in consumer:
             global mapa
             mapa = auxMap
-            sleep(0.3)
+            sleep(0.1)
             if stop:
                 return mapa
             aux = mensaje.value
