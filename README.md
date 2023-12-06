@@ -1,1 +1,0 @@
-# SD-prac2-mine

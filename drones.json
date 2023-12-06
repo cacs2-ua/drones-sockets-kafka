@@ -1,3 +1,79 @@
 {
-    "drones": []
+    "drones": [
+        {
+            "id": 1,
+            "alias": "d1",
+            "token": "7d74ad31-fe1a-49e7-9b7b-4bfc885131ad"
+        },
+        {
+            "id": 2,
+            "alias": "d2",
+            "token": "770ce445-b4ac-45ba-8dd1-15eca34ddd55"
+        },
+        {
+            "id": 3,
+            "alias": "d3",
+            "token": "8e7fbd55-7e92-452f-816d-94d554e4d49f"
+        },
+        {
+            "id": 4,
+            "alias": "d4",
+            "token": "650b3a3f-789f-4cca-bc06-aa5e3f742123"
+        },
+        {
+            "id": 5,
+            "alias": "d5",
+            "token": "c2edd2e5-3f5f-4919-8e8b-11632d1384a8"
+        },
+        {
+            "id": 6,
+            "alias": "d6",
+            "token": "b60c78be-e6ac-440b-8aad-60124928a2ad"
+        },
+        {
+            "id": 7,
+            "alias": "d7",
+            "token": "720c8a90-cab3-46a3-b40b-55c3ad97c8d0"
+        },
+        {
+            "id": 8,
+            "alias": "d8",
+            "token": "33d962b8-08b4-4c5f-9b7d-5787e689ab6f"
+        },
+        {
+            "id": 9,
+            "alias": "d9",
+            "token": "a4673b97-3b39-4ca5-a070-5207520ff417"
+        },
+        {
+            "id": 10,
+            "alias": "d10",
+            "token": "d33d1534-84f4-4fdf-b9ce-e225879efa3d"
+        },
+        {
+            "id": 11,
+            "alias": "d11",
+            "token": "63557aa8-ac2c-40b9-a4e9-a49e7570bb66"
+        },
+        {
+            "id": 12,
+            "alias": "d12",
+            "token": "e7ea8647-6435-40f3-8493-ad893b7f800d"
+        },
+        {
+            "id": 13,
+            "alias": "d13",
+            "token": "bf2275af-0e4f-4de6-a7a6-0361b65dea36"
+        },
+        {
+            "id": 14,
+            "alias": "d14",
+            "token": "abe22f8f-21b8-4eff-88cd-79b20c5e078f"
+        },
+        {
+            "id": 15,
+            "alias": "d15",
+            "token": "fb27f9c7-993c-458b-80ef-7b553d843d93"
+        }
+    ]
 }

@@ -48,6 +48,46 @@ def registrarDron(host,port):
 def connectionCheck(puerto_colas, idDron):
     return
 
+# Calcular movimiento del dron
+def calcularMovimiento(pos, destino):
+    if pos[0] < destino[0]:
+        if (20-destino[0]+pos[0]) < (destino[0]-pos[0]):
+            if pos[0]==0:
+                pos = (19, pos[1])
+            else:
+                pos = ((pos[0]-1), pos[1])
+        else:
+            pos = ((pos[0]+1), pos[1])
+    elif pos[0] > destino[0]:
+        if (20-pos[0]+destino[0]) < (pos[0]-destino[0]):
+            if pos[0]==19:
+                pos = (0, pos[1])
+            else:
+                pos = ((pos[0]+1), pos[1])
+        else:
+            pos = ((pos[0]-1), pos[1])
+    else:
+        pos = (pos[0], pos[1])
+    if pos[1] < destino[1]:
+        if (20-destino[1]+pos[1]) < (destino[1]-pos[1]):
+            if pos[1]==0:
+                pos = (pos[0], 19)
+            else:
+                pos = (pos[0], (pos[1]-1))
+        else:
+            pos = (pos[0], (pos[1]+1))
+    elif pos[1] > destino[1]:
+        if (20-pos[1]+destino[1]) < (pos[1]-destino[1]):
+            if pos[1]==19:
+                pos = (pos[0], 0)
+            else:
+                pos = (pos[0], (pos[1]+1))
+        else:
+            pos = (pos[0], (pos[1]-1))
+    else:
+        pos = (pos[0], pos[1])
+    return pos
+
 # Enviar movimiento del dron al Engine
 def enviarMovimiento(pos, destino, puerto_colas, idDron):
     try:
@@ -55,45 +95,8 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
                             value_serializer=lambda x: 
                             json.dumps(x).encode('utf-8'))
 
-        if pos[0] < destino[0]:
-            if (20-destino[0]+pos[0]) < (destino[0]-pos[0]):
-                if pos[0]==0:
-                    pos = (19, pos[1])
-                else:
-                    pos = ((pos[0]-1), pos[1])
-            else:
-                pos = ((pos[0]+1), pos[1])
-        elif pos[0] > destino[0]:
-            if (20-pos[0]+destino[0]) < (pos[0]-destino[0]):
-                if pos[0]==19:
-                    pos = (0, pos[1])
-                else:
-                    pos = ((pos[0]+1), pos[1])
-            else:
-                pos = ((pos[0]-1), pos[1])
-        else:
-            pos = (pos[0], pos[1])
-        
-        if pos[1] < destino[1]:
-            if (20-destino[1]+pos[1]) < (destino[1]-pos[1]):
-                if pos[1]==0:
-                    pos = (pos[0], 19)
-                else:
-                    pos = (pos[0], (pos[1]-1))
-            else:
-                pos = (pos[0], (pos[1]+1))
-        elif pos[1] > destino[1]:
-            if (20-pos[1]+destino[1]) < (pos[1]-destino[1]):
-                if pos[1]==19:
-                    pos = (pos[0], 0)
-                else:
-                    pos = (pos[0], (pos[1]+1))
-            else:
-                pos = (pos[0], (pos[1]-1))
-        else:
-            pos = (pos[0], pos[1])
-        mensaje = {"id": idDron, "posicion": pos}
-        producer.send('movimientos', value=mensaje)
+        pos = calcularMovimiento(pos, destino)
+        producer.send('movimientos', value={"id": idDron, "posicion": pos})
         producer.flush()
         return pos
 
@@ -110,7 +113,7 @@ def getDestino(puerto_colas, idDron):
     try:
         consumer2 = KafkaConsumer(
             bootstrap_servers=[puerto_colas],
-            consumer_timeout_ms=5000,
+            consumer_timeout_ms=2000,
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
@@ -135,10 +138,9 @@ def getDestino(puerto_colas, idDron):
                     con.start()
                     first = False
                 '''
-                if aux["destino"][0]=="Stop" and aux["destino"][1] == idDron:
+                if aux["destino"][0]=="Stop" and aux["destino"][1]==idDron:
                     end = True
                     timeout = True
-                    print("STOOOOOP: ",pos,aux["destino"],idDron)
                     break
                 elif aux["destino"][0]=="Wait" and aux["destino"][1]==idDron:
                     timeout = True
@@ -170,6 +172,45 @@ def comprobarMapa(mapa):
                 return False
     return True
 
+# Mostrar mapa del espectaculo
+def mostrarMapa(mapa,completo):
+    print("\033c")
+    if(comprobarMapa(mapa)):
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
+        if completo==True:
+            print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
+        else:
+            print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
+    else:
+        print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
+    for i in range (0, 21):
+        if i == 0:
+            print("      ", end = "")
+        else:
+            if i < 10:
+                print("  " + str(i), end = "  ")
+            else:
+                print(" " + str(i), end = "  ")
+        for j in range (0, 21):
+            if j > 0:
+                if i == 0:
+                    if j < 10:
+                        print(" " + str(j), end = "   ")
+                    else:
+                        print(str(j), end = "   ")
+                else:
+                    if mapa[j-1][i-1][1]!=True:
+                        color = '\x1b[5;30;41m'
+                    else:
+                        color = '\x1b[6;30;42m'
+                    if mapa[j-1][i-1][0]==0:
+                        print("    ", end = " ")
+                    elif mapa[j-1][i-1][0]<10:
+                        print(color + "  " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+                    else:
+                        print(color + " " + str(mapa[j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
+        print("\n")
+
 # Leer y mostrar mapa del espectaculo
 def readMap(puerto_colas,idDron):
     end = False
@@ -187,43 +228,7 @@ def readMap(puerto_colas,idDron):
         while end!=True:
             for mensaje in consumer:
                 aux = mensaje.value
-                print("\033c")
-                if(comprobarMapa(aux["mapa"])):
-                    print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
-                    if aux["completo"]==True:
-                        print("  " + '\x1b[6;30;42m' + " ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
-                    else:
-                        print("  " + '\x1b[6;30;42m' + " ¡FIGURA COMPLETADA! " + '\x1b[0m' + "\n")
-                else:
-                    print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m' + "\n")
-                for i in range (0, 21):
-                    if i == 0:
-                        print("      ", end = "")
-                    else:
-                        if i < 10:
-                            print("  " + str(i), end = "  ")
-                        else:
-                            print(" " + str(i), end = "  ")
-
-                    for j in range (0, 21):
-                        if j > 0:
-                            if i == 0:
-                                if j < 10:
-                                    print(" " + str(j), end = "   ")
-                                else:
-                                    print(str(j), end = "   ")
-                            else:
-                                if aux["mapa"][j-1][i-1][1]!=True:
-                                    color = '\x1b[5;30;41m'
-                                else:
-                                    color = '\x1b[6;30;42m'
-                                if aux["mapa"][j-1][i-1][0]==0:
-                                    print("    ", end = " ")
-                                elif aux["mapa"][j-1][i-1][0]<10:
-                                    print(color + "  " + str(aux["mapa"][j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
-                                else:
-                                    print(color + " " + str(aux["mapa"][j-1][i-1][0]) + " " + '\x1b[0m', end = " ")
-                    print("\n")
+                mostrarMapa(aux["mapa"],aux["completo"])
                 print(" " + '\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
                     sleep(1)
@@ -335,7 +340,6 @@ if __name__ == "__main__":
             except:
                 pass
             sys.exit()
-        print("adios")
         sys.exit()
         
 
@@ -378,5 +382,3 @@ if __name__ == "__main__":
         else:
             print("\033c")
             print(" " + '\x1b[5;30;41m' + " Opción incorrecta " + '\x1b[0m' + "\n\n")
-    
-    

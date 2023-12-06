@@ -11,6 +11,7 @@ from kafka import TopicPartition
 import socket
 import threading
 import pickle
+import requests
 
 # Variables globales
 os.system('color')
@@ -82,18 +83,19 @@ def listen_for_drones(ip,port,stop_event,numDrones):
         return
 
 
-def get_temperature_from_weather_server(host, port):
+def get_temperature_from_weather_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        s.connect((host, port))
-        mensaje="OK"
-        s.sendall(mensaje.encode('utf-8'))
-        temperature_data = s.recv(1024).decode('utf-8')
-        s.close()
+        file = open('weather_bd.json', 'r')
+        data = json.load(file)
+        file.close()
+        ciudad = data.get("Ciudad")
+
+        response = requests.get("https://api.openweathermap.org/data/2.5/weather?q=" + ciudad + "&appid=b5e77a622c4b71a18893ae7cb7defa38")
+        temperature_data = response.json()["main"]["temp"] - 273.15
         try:
             return int(temperature_data)
         except ValueError:
-            print(temperature_data)
             return None
     except ConnectionRefusedError:
         return None
@@ -104,6 +106,8 @@ def finalizarEspectaculo():
     global mapa
     global conexiones
     global stop
+    global completed
+    completed = []
     i = 0
     for a in bbDD:
         bbDD[i] = (a[0],(0,0))
@@ -122,14 +126,14 @@ def finalizarEspectaculo():
     return
 
 
-def get_temperature_while(ip_weather, puerto_weather,stop_event):
+def get_temperature_while(stop_event):
     while True:
         global stop
         global start
         global cancel
         if stop_event.is_set() or stop:
             break
-        temperature = get_temperature_from_weather_server(ip_weather, puerto_weather)
+        temperature = get_temperature_from_weather_server()
         if temperature is not None:
             if temperature < 0:
                 stop = True
@@ -328,7 +332,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
         for mensaje in consumer:
             global mapa
             mapa = auxMap
-            sleep(0.1)
+            sleep(0.05)
             if stop:
                 return mapa
             aux = mensaje.value
@@ -380,30 +384,20 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
     return mapa
 
 
-def conexionWeatherDrone(ip_escucha,puerto_escucha, drones, ip_weather, puerto_weather, stop_event_drone,stop_event_weather):
+def conexionWeatherDrone(ip_escucha,puerto_escucha, drones, stop_event_drone,stop_event_weather):
         # Crear y empezar el hilo para escuchar a los drones
         drone_thread = threading.Thread(target=listen_for_drones, args=(ip_escucha,puerto_escucha,stop_event_drone,drones))
         drone_thread.start()
         
         # Crear y empezar el hilo para obtener la temperatura desde AD_Weather
-        weather_thread = threading.Thread(target=get_temperature_while, args=(ip_weather, puerto_weather,stop_event_weather))
+        weather_thread = threading.Thread(target=get_temperature_while, args=(stop_event_weather,))
         weather_thread.start()
-        return
-
-
-def finWeather(engine_ip,engine_port):
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((engine_ip, engine_port))
-            mensaje="FIN"
-            s.sendall(mensaje.encode('utf-8'))
-    except:
         return
 
 # Parte principal del programa
 if __name__ == "__main__":
     # Argumentos de linea de parametros
-    if(len(sys.argv))!=5:
+    if(len(sys.argv))!=4:
         print("\033c")
         sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas> <IP:Puerto Weather>")
     
@@ -411,8 +405,6 @@ if __name__ == "__main__":
     puerto_escucha=int(puerto_escucha)
     drones = int(sys.argv[2])
     puerto_colas = sys.argv[3]
-    ip_weather, puerto_weather = sys.argv[4].split(':')
-    puerto_weather = int(puerto_weather)
     
     stop_event_drone = threading.Event()
     stop_event_weather = threading.Event()
@@ -433,7 +425,7 @@ if __name__ == "__main__":
         sys.exit()
     file.close()
 
-    conexionWeatherDrone(ip_escucha,puerto_escucha, drones, ip_weather, puerto_weather,stop_event_drone,stop_event_weather)
+    conexionWeatherDrone(ip_escucha,puerto_escucha, drones, stop_event_drone,stop_event_weather)
 
     #try:
     while True:
@@ -442,7 +434,6 @@ if __name__ == "__main__":
     if stop:
         stop_event_drone.set()
         stop_event_weather.set()
-        finWeather(ip_weather,puerto_weather)
         sys.exit()
     count = 0
     iter = None
@@ -520,7 +511,6 @@ if __name__ == "__main__":
 
     stop_event_drone.set()
     stop_event_weather.set()
-    finWeather(ip_weather,puerto_weather)
     sleep(3)
     print("\n" + '\x1b[6;30;47m' + " ESPECTÁCULO FINALIZADO " + '\x1b[0m')
     sys.exit()
