@@ -93,4 +93,5 @@ def post_data():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='192.168.1.8')
+    #app.run(host='192.168.1.8')
+    app.run(host='172.21.242.131')

@@ -2,9 +2,11 @@ import requests
 import json
 import uuid
 
+ip = "172.21.242.131"
+
 def get_data():
     try:
-        url= 'http://192.168.1.8:5000/data'
+        url = 'http://' + ip + ':5000/data'
         response= requests.get(url)
         if response.status_code == 200:
             diccionario_respuesta=response.json()
@@ -21,7 +23,7 @@ def get_data():
 
 def post_data():
     try:
-        url = "http://192.168.1.8:5000/dron"
+        url = 'http://' + ip + ':5000/dron'
         data = {
             "alias": "alias",
             "token": "contraseña"

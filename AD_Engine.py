@@ -84,14 +84,18 @@ def listen_for_drones(ip,port,stop_event,numDrones):
 
 
 def get_temperature_from_weather_server():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         file = open('weather_bd.json', 'r')
         data = json.load(file)
         file.close()
         ciudad = data.get("Ciudad")
 
-        response = requests.get("https://api.openweathermap.org/data/2.5/weather?q=" + ciudad + "&appid=b5e77a622c4b71a18893ae7cb7defa38")
+        file2 = open('openweather.json', 'r')
+        data2 = json.load(file2)
+        apiKey = data2.get("key")
+        file2.close()
+
+        response = requests.get("https://api.openweathermap.org/data/2.5/weather?q=" + ciudad + "&appid=" + apiKey)
         temperature_data = response.json()["main"]["temp"] - 273.15
         try:
             return int(temperature_data)
