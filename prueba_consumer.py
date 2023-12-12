@@ -2,7 +2,7 @@ import requests
 import json
 import uuid
 
-ip = "192.168.1.8"
+ip = "172.21.243.67"
 
 def get_data():
     try:
@@ -11,8 +11,8 @@ def get_data():
         if response.status_code == 200:
             diccionario_respuesta=response.json()
             print(json.dumps(diccionario_respuesta, indent=4, sort_keys=True), end="\n\n\n\n\n\n")
-    except Exception as e:
 
+    except Exception as e:
         response = {
         'data': None,
         'error' : False,

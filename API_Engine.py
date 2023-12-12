@@ -5,6 +5,7 @@ import os
 
 app = Flask(__name__)
 
+
 def get_next_drone_id():
     with open("drones.json", 'r') as file:
         data = json.load(file)
@@ -13,6 +14,7 @@ def get_next_drone_id():
         return 1
     return int(data["drones"][-1]["id"])+1
 
+
 def hash_password(password, salt_length=16, iterations=100000):
 
     salt = os.urandom(salt_length)
@@ -20,14 +22,8 @@ def hash_password(password, salt_length=16, iterations=100000):
     hashed_password = hashlib.pbkdf2_hmac('sha256', salted_password, salt, iterations)
     return salt.hex() + hashed_password.hex()
 
-def verify_password(stored_password, input_password):
 
-    salt = bytes.fromhex(stored_password[:32])
-    salted_password = salt + input_password.encode('utf-8')
-    hashed_password = hashlib.pbkdf2_hmac('sha256', salted_password, salt, 100000)
-    return hashed_password.hex() == stored_password[32:]
-
-@app.route('/data', methods=['GET'])
+@app.route('/dron', methods=['GET'])
 def get_data():
     try:
         if request.method == 'GET':
@@ -35,52 +31,12 @@ def get_data():
             data = json.load(file)
             file.close()
             response = {
-            'data':data,
+            'data':data["drones"],
             'error': False,
             'message': 'Items Fetched Successfully'
             }
             return jsonify(response), 200
     
-    except Exception as e:
-        response = {
-        'data': None,
-        'error': True,
-        'message': f'Error Occurred: {e}'
-        }
-        return jsonify(response), 500
-
-@app.route('/dron', methods=['GET'])
-def check_dron():
-    try:
-        if request.method == 'GET':
-
-            data = request.get_json()
-            with open("drones.json", 'r') as file:
-                bbDD = json.load(file)
-                file.close()
-
-            idDron = data["id"]
-            token = data["token"]
-            stored_password = None
-            for dron in bbDD["drones"]:
-                if dron["id"] == idDron:
-                    stored_password = dron["token"]
-                    break
-            if stored_password is not None:
-                result = verify_password(stored_password, token)
-            else:
-                result = False
-            if result:
-                message = "Token correcto"
-            else:
-                message = "Token incorrecto"
-            response = {
-            'correct': result,
-            'error': False,
-            'message': message
-            }
-            return jsonify(response), 200
-
     except Exception as e:
         response = {
         'data': None,
@@ -130,6 +86,29 @@ def post_data():
         return jsonify(response), 500
 
 
+@app.route('/mapa', methods=['GET'])
+def get_mapa():
+    try:
+        if request.method == 'GET':
+            file = open('drones.json', 'r')
+            data = json.load(file)
+            file.close()
+            response = {
+            'data':data["mapa"],
+            'error': False,
+            'message': 'Items Fetched Successfully'
+            }
+            return jsonify(response), 200
+    
+    except Exception as e:
+        response = {
+        'data': None,
+        'error': True,
+        'message': f'Error Occurred: {e}'
+        }
+        return jsonify(response), 500
+
+
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='172.21.243.67')
+    app.run(host='192.168.1.8')

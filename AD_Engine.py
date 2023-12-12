@@ -101,8 +101,24 @@ def get_temperature_from_weather_server():
             return int(temperature_data)
         except ValueError:
             return None
-    except ConnectionRefusedError:
+    except:
         return None
+
+
+def clearMapa():
+    mapa = []
+    for i in range (0, 20):
+        mapa.append([])
+        for j in range (0, 20):
+            mapa[i].append((0,False))
+
+    with open("drones.json", 'r') as file:
+        data = json.load(file)
+
+    data["mapa"] = mapa
+
+    with open("drones.json", 'w') as file:
+        json.dump(data, file, indent=4)
 
 
 def finalizarEspectaculo():
@@ -124,6 +140,7 @@ def finalizarEspectaculo():
     comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
     comp.start()
     mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
+    clearMapa()
     stop_event_conexion.set()
     conexiones = []
     stop = True
@@ -275,6 +292,15 @@ def recalcularMapa(newPos,id):
                         mapa[i][j] = (a[0],True)
                         break
     mapa[newPos[0]][newPos[1]]=(id,newS)
+    
+    with open("drones.json", 'r') as file:
+        data = json.load(file)
+
+    data["mapa"] = mapa
+
+    with open("drones.json", 'w') as file:
+        json.dump(data, file, indent=4)
+
     return mapa
 
 
@@ -311,6 +337,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
     producer.flush()
     
     if first:
+        clearMapa()
         for i in range (0, 20):
             auxMap.append([])
             for j in range (0, 20):
@@ -468,6 +495,7 @@ if __name__ == "__main__":
             comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
             comp.start()
             mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
+            clearMapa()
             if stop:
                 sys.exit()
             stop_event_conexion.set()
