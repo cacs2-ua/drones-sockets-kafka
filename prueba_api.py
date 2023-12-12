@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, request
 import json
-import uuid
 import hashlib
 import os
 
@@ -19,7 +18,6 @@ def hash_password(password, salt_length=16, iterations=100000):
     salt = os.urandom(salt_length)
     salted_password = salt + password.encode('utf-8')
     hashed_password = hashlib.pbkdf2_hmac('sha256', salted_password, salt, iterations)
-
     return salt.hex() + hashed_password.hex()
 
 def verify_password(stored_password, input_password):
@@ -27,7 +25,6 @@ def verify_password(stored_password, input_password):
     salt = bytes.fromhex(stored_password[:32])
     salted_password = salt + input_password.encode('utf-8')
     hashed_password = hashlib.pbkdf2_hmac('sha256', salted_password, salt, 100000)
-    
     return hashed_password.hex() == stored_password[32:]
 
 @app.route('/data', methods=['GET'])
@@ -52,6 +49,47 @@ def get_data():
         }
         return jsonify(response), 500
 
+@app.route('/dron', methods=['GET'])
+def check_dron():
+    try:
+        if request.method == 'GET':
+
+            data = request.get_json()
+            with open("drones.json", 'r') as file:
+                bbDD = json.load(file)
+                file.close()
+
+            idDron = data["id"]
+            token = data["token"]
+            stored_password = None
+            for dron in bbDD["drones"]:
+                if dron["id"] == idDron:
+                    stored_password = dron["token"]
+                    break
+            if stored_password is not None:
+                result = verify_password(stored_password, token)
+            else:
+                result = False
+            if result:
+                message = "Token correcto"
+            else:
+                message = "Token incorrecto"
+            response = {
+            'correct': result,
+            'error': False,
+            'message': message
+            }
+            return jsonify(response), 200
+
+    except Exception as e:
+        response = {
+        'data': None,
+        'error': True,
+        'message': f'Error Occurred: {e}'
+        }
+        return jsonify(response), 500
+
+
 @app.route('/dron', methods=['POST'])
 def post_data():
     try:
@@ -60,6 +98,7 @@ def post_data():
             data = request.get_json()
             with open("drones.json", 'r') as file:
                 bbDD = json.load(file)
+                file.close()
 
             idDron = get_next_drone_id()
             alias = data["alias"]
@@ -76,7 +115,7 @@ def post_data():
                 json.dump(bbDD, file, indent=4)
             
             response = {
-            'data':data,
+            'data': data,
             'error': False,
             'message': 'Items Posted Successfully'
             }
@@ -93,5 +132,4 @@ def post_data():
 
 if __name__ == '__main__':
     app.debug = True
-    #app.run(host='192.168.1.8')
-    app.run(host='172.21.242.131')
+    app.run(host='192.168.1.8')
