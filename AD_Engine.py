@@ -12,6 +12,8 @@ import socket
 import threading
 import pickle
 import requests
+from cryptography.fernet import Fernet
+
 
 # Variables globales
 os.system('color')
@@ -25,6 +27,26 @@ bbDD = []
 completed = []
 conexiones = []
 mapa = []
+
+
+def encryptMensaje(mensaje):
+    '''
+    with open("fernet.key", "rb") as file:
+        clave = file.read()
+    cipher_suite = Fernet(clave)
+    return cipher_suite.encrypt(pickle.dumps(mensaje)).decode("utf-8")
+    '''
+    return mensaje
+
+
+def decryptMensaje(mensaje):
+    '''
+    with open("fernet.key", "rb") as file:
+        clave = file.read()
+    cipher_suite = Fernet(clave)
+    return pickle.loads(cipher_suite.decrypt(mensaje.encode("utf-8")))
+    '''
+    return mensaje
 
 
 def is_token_valid(token):
@@ -74,7 +96,8 @@ def listen_for_drones(ip,port,stop_event,numDrones):
                             value_serializer=lambda x: 
                             json.dumps(x).encode('utf-8'))
                         data = {"destino" : bbDD}
-                        producer3.send('destinos', value=data)
+                        data = encryptMensaje(data)
+                        producer3.send('destinos', value={"message": data})
                         producer3.flush()
                     first = False
                 else:
@@ -112,12 +135,13 @@ def clearMapa():
         for j in range (0, 20):
             mapa[i].append((0,False))
 
-    with open("drones.json", 'r') as file:
+    with open("mapa.json", 'r') as file:
         data = json.load(file)
+        file.close()
 
     data["mapa"] = mapa
 
-    with open("drones.json", 'w') as file:
+    with open("mapa.json", 'w') as file:
         json.dump(data, file, indent=4)
 
 
@@ -230,8 +254,14 @@ def comprobarConexiones(stop_event,dest):
         global dronCount
         global conexiones
         global mapa
+        global cancel
         global stop
         global bbDD
+        global completed
+        '''
+        if mapa == []:
+            sleep(0.25)
+            continue
         count = 0
         auxDest = bbDD.copy()
         if stop_event.is_set() or stop:
@@ -239,13 +269,17 @@ def comprobarConexiones(stop_event,dest):
         change = False
         timeNow = time.time()
         con = conexiones.copy()
-        '''
+
         for i in range (0, len(con)):
-            if (timeNow-con[i][1])>3:
+            if (timeNow-con[i][1])>7:
                 for j in range (0, 20):
                     for k in range (0, 20):
-                        if mapa[j][k][0]==con[i][0]:
+                        if mapa[j][k][0]==con[i][0] and mapa[j][k][1]==False:
                             mapa[j][k] = (0,False)
+                            for a in completed:
+                                if a[1][0]==j and a[1][1]==k:
+                                    mapa[j][k] = (a[0],True)
+                                    break
                             count = count + 1
                             change = True
         if change:
@@ -256,9 +290,10 @@ def comprobarConexiones(stop_event,dest):
             data2 = {"mapa" : mapa, "completo" : False, "cancel" : cancel}
             producer2.send('posiciones', value=data2)
             producer2.flush()
-            mostrarMapa(False,auxDest)
         '''
+
         sleep(0.25)
+        
     return
 
 
@@ -293,12 +328,13 @@ def recalcularMapa(newPos,id):
                         break
     mapa[newPos[0]][newPos[1]]=(id,newS)
     
-    with open("drones.json", 'r') as file:
+    with open("mapa.json", 'r') as file:
         data = json.load(file)
+        file.close()
 
     data["mapa"] = mapa
 
-    with open("drones.json", 'w') as file:
+    with open("mapa.json", 'w') as file:
         json.dump(data, file, indent=4)
 
     return mapa
@@ -333,7 +369,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
         return auxMap
 
     data = {"destino" : bbDD}
-    producer.send('destinos', value=data)
+    data = encryptMensaje(data)
+    producer.send('destinos', value={"message": data})
     producer.flush()
     
     if first:
@@ -354,7 +391,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
         mostrarMapa(False,bbDD)
 
     data2 = {"mapa" : auxMap, "completo" : False, "cancel" : cancel}
-    producer2.send('posiciones', value=data2)
+    data2 = encryptMensaje(data2)
+    producer2.send('posiciones', value={"message": data2})
     producer2.flush()
 
     while end!=True:
@@ -366,7 +404,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
             sleep(0.05)
             if stop:
                 return mapa
-            aux = mensaje.value
+            aux = mensaje.value["message"]
+            aux = decryptMensaje(aux)
             mapa = recalcularMapa(aux["posicion"],aux["id"])
 
             actualizarConexion(aux["id"])
@@ -390,7 +429,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                 mapa[destino[0]][destino[1]] = new
             else:
                 data = {"destino" : bbDD}
-            producer.send('destinos', value=data)
+            data = encryptMensaje(data)
+            producer.send('destinos', value={"message": data})
             producer.flush()
 
             mapa = recalcularMapa(aux["posicion"],aux["id"])
@@ -409,7 +449,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                         break
             mostrarMapa((end and last),bbDD)
             data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : cancel}
-            producer2.send('posiciones', value=data2)
+            data2 = encryptMensaje(data2)
+            producer2.send('posiciones', value={"message": data2})
             producer2.flush()
             break
     return mapa

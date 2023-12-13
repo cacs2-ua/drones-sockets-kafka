@@ -12,8 +12,12 @@ DATABASE_PATH = "drones.json"
 
 
 def register_drone(id, alias):
-    with open(DATABASE_PATH, 'r') as file:
-        data = json.load(file)
+    try:
+        with open(DATABASE_PATH, 'r') as file:
+            data = json.load(file)
+            file.close()
+    except:
+        return register_drone(id, alias)
 
     token = str(uuid.uuid4())
     data["drones"].append({
@@ -29,8 +33,12 @@ def register_drone(id, alias):
 
 
 def get_next_drone_id():
-    with open(DATABASE_PATH, 'r') as file:
-        data = json.load(file)
+    try:
+        with open(DATABASE_PATH, 'r') as file:
+            data = json.load(file)
+            file.close()
+    except:
+        return get_next_drone_id()
 
     if not data["drones"]:
         return 1

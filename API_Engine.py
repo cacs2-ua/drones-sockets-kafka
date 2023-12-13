@@ -90,7 +90,7 @@ def post_data():
 def get_mapa():
     try:
         if request.method == 'GET':
-            file = open('drones.json', 'r')
+            file = open('mapa.json', 'r')
             data = json.load(file)
             file.close()
             response = {

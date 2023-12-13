@@ -10,12 +10,34 @@ from json import loads
 import socket
 import threading
 import pickle
+from cryptography.fernet import Fernet
 
 # Variables globales
 os.system('color')
 id : int
 alias : str = ""
 DATABASE_PATH = "drones.json"
+
+
+def encryptMensaje(mensaje):
+    '''
+    with open("fernet.key", "rb") as file:
+        clave = file.read()
+    cipher_suite = Fernet(clave)
+    return cipher_suite.encrypt(pickle.dumps(mensaje)).decode("utf-8")
+    '''
+    return mensaje
+
+
+def decryptMensaje(mensaje):
+    '''
+    with open("fernet.key", "rb") as file:
+        clave = file.read()
+    cipher_suite = Fernet(clave)
+    return pickle.loads(cipher_suite.decrypt(mensaje.encode("utf-8")))
+    '''
+    return mensaje
+
 
 # Registrar un dron en AD_Registry
 def connect_to_registry(alias,host,port):
@@ -96,7 +118,9 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
                             json.dumps(x).encode('utf-8'))
 
         pos = calcularMovimiento(pos, destino)
-        producer.send('movimientos', value={"id": idDron, "posicion": pos})
+        data = {"id": idDron, "posicion": pos}
+        data = encryptMensaje(data)
+        producer.send('movimientos', value={"message": data})
         producer.flush()
         return pos
 
@@ -131,7 +155,8 @@ def getDestino(puerto_colas, idDron):
                 else:
                     pos = enviarMovimiento(pos, pos, puerto_colas, idDron)
             for mensaje in consumer2:
-                aux = mensaje.value
+                aux = mensaje.value["message"]
+                aux = decryptMensaje(aux)
                 '''
                 if first:
                     con = threading.Thread(target=connectionCheck, args=(puerto_colas, idDron, ))
@@ -156,7 +181,7 @@ def getDestino(puerto_colas, idDron):
                         dest = a[1]
                         break
                 if dest[0]!=pos[0] or dest[1]!=pos[1]:
-                    sleep(0.5)
+                    sleep(0.2)
                     if enter:
                         pos = enviarMovimiento(pos, dest, puerto_colas, idDron)
                 if end==True:
@@ -227,7 +252,8 @@ def readMap(puerto_colas,idDron):
 
         while end!=True:
             for mensaje in consumer:
-                aux = mensaje.value
+                aux = mensaje.value["message"]
+                aux = decryptMensaje(aux)
                 mostrarMapa(aux["mapa"],aux["completo"])
                 print(" " + '\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
