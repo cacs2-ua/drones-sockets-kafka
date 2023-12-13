@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 import json
 import hashlib
 import os
+import time
 
 app = Flask(__name__)
 
@@ -50,7 +51,7 @@ def get_data():
         return jsonify(response), 500
 
 @app.route('/dron', methods=['GET'])
-def check_dron():
+def get_dron():
     try:
         if request.method == 'GET':
 
@@ -62,25 +63,36 @@ def check_dron():
             idDron = data["id"]
             token = data["token"]
             stored_password = None
+            timeDron = 0.0
+            repeat = False
             for dron in bbDD["drones"]:
                 if dron["id"] == idDron:
                     stored_password = dron["token"]
+                    timeDron = dron["time"]
                     break
             if stored_password is not None:
                 result = verify_password(stored_password, token)
+                checkTime = time.time() - timeDron
             else:
                 result = False
+                checkTime = timeDron
             if result:
-                message = "Token correcto"
+                if checkTime > 20.0:
+                    message = "Token caducado, solicitando nuevo token"
+                    result = False
+                    repeat = True
+                else:
+                    message = "Token correcto, uniendo a espectáculo"
             else:
-                message = "Token incorrecto"
+                message = "Token incorrecto, acceso denegado"
             response = {
             'correct': result,
             'error': False,
+            'repeat': repeat,
             'message': message
             }
             return jsonify(response), 200
-
+    
     except Exception as e:
         response = {
         'data': None,
@@ -91,7 +103,7 @@ def check_dron():
 
 
 @app.route('/dron', methods=['POST'])
-def post_data():
+def post_dron():
     try:
         if request.method == 'POST':
 
@@ -107,7 +119,8 @@ def post_data():
             data = {
                 "id": idDron,
                 "alias": alias,
-                "token": token
+                "token": token,
+                "time": time.time()
             }
             bbDD["drones"].append(data)
 
@@ -130,6 +143,44 @@ def post_data():
         return jsonify(response), 500
 
 
+@app.route('/dron', methods=['PUT'])
+def put_dron():
+    try:
+        if request.method == 'PUT':
+
+            data = request.get_json()
+            with open("drones.json", 'r') as file:
+                bbDD = json.load(file)
+                file.close()
+
+            idDron = data["id"]
+            token = data["token"]
+            token = hash_password(token)
+            for dron in bbDD["drones"]:
+                if dron["id"] == idDron:
+                    dron["token"] = token
+                    dron["time"] = time.time()
+                    break
+
+            with open("drones.json", 'w') as file:
+                json.dump(bbDD, file, indent=4)
+            
+            response = {
+            'data': data,
+            'error': False,
+            'message': 'Items Put Successfully'
+            }
+            return jsonify(response), 200
+
+    except Exception as e:
+        response = {
+        'data': None,
+        'error': True,
+        'message': f'Error Occurred: {e}'
+        }
+        return jsonify(response), 500
+
+
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='172.21.243.67')
+    app.run(host='172.27.218.166')
