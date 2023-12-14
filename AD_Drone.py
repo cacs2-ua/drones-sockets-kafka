@@ -11,12 +11,15 @@ import socket
 import threading
 import pickle
 from cryptography.fernet import Fernet
+import ssl
+import base64
 
 # Variables globales
 os.system('color')
 id : int
 alias : str = ""
 DATABASE_PATH = "drones.json"
+context = ssl._create_unverified_context()
 
 
 def encryptMensaje(mensaje):
@@ -24,7 +27,7 @@ def encryptMensaje(mensaje):
     with open("fernet.key", "rb") as file:
         clave = file.read()
     cipher_suite = Fernet(clave)
-    return cipher_suite.encrypt(pickle.dumps(mensaje)).decode("utf-8")
+    return pickle.loads(cipher_suite.encrypt(pickle.dumps(mensaje)))
     '''
     return mensaje
 
@@ -34,7 +37,7 @@ def decryptMensaje(mensaje):
     with open("fernet.key", "rb") as file:
         clave = file.read()
     cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.decrypt(mensaje.encode("utf-8")))
+    return pickle.loads(cipher_suite.decrypt(pickle.dumps(mensaje)))
     '''
     return mensaje
 
@@ -43,12 +46,21 @@ def decryptMensaje(mensaje):
 def connect_to_registry(alias,host,port):
     while True:
         try:
+            '''
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((host, port))
                 s.sendall(alias.encode("utf-8"))
                 ret = s.recv(1024)
                 ret = pickle.loads(ret)
             return ret[0], ret[1]
+            '''
+            with socket.create_connection((host, port)) as sock:
+                with context.wrap_socket(sock, server_hostname=host) as ssock:
+                    ssock.sendall(alias.encode("utf-8"))
+                    ret = ssock.recv(1024)
+                    ret = pickle.loads(ret)
+                    return ret[0], ret[1]
+
         except:
             print("\n\n" + '\x1b[5;30;41m' + " No se puede establecer conexión con AD_Registry. Reintentando en 5 segundos... " + '\x1b[0m')
             sleep(5)
@@ -118,8 +130,7 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
                             json.dumps(x).encode('utf-8'))
 
         pos = calcularMovimiento(pos, destino)
-        data = {"id": idDron, "posicion": pos}
-        data = encryptMensaje(data)
+        data = {"id": encryptMensaje(idDron), "posicion": encryptMensaje(pos)}
         producer.send('movimientos', value={"message": data})
         producer.flush()
         return pos
@@ -156,7 +167,7 @@ def getDestino(puerto_colas, idDron):
                     pos = enviarMovimiento(pos, pos, puerto_colas, idDron)
             for mensaje in consumer2:
                 aux = mensaje.value["message"]
-                aux = decryptMensaje(aux)
+                aux["destino"] = decryptMensaje(aux["destino"])
                 '''
                 if first:
                     con = threading.Thread(target=connectionCheck, args=(puerto_colas, idDron, ))
@@ -253,7 +264,7 @@ def readMap(puerto_colas,idDron):
         while end!=True:
             for mensaje in consumer:
                 aux = mensaje.value["message"]
-                aux = decryptMensaje(aux)
+                aux["mapa"] = decryptMensaje(aux["mapa"])
                 mostrarMapa(aux["mapa"],aux["completo"])
                 print(" " + '\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
@@ -290,6 +301,7 @@ def realizarEspectaculo(puerto_colas, idDron):
 def authenticate_with_engine(token, engine_ip, engine_port):
     try:
         global id
+        '''
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((engine_ip, engine_port))
             s.sendall(token.encode("utf-8"))
@@ -299,9 +311,18 @@ def authenticate_with_engine(token, engine_ip, engine_port):
                 return True
             else:
                 return False
+            '''
+        with socket.create_connection((engine_ip, engine_port)) as sock:
+            with context.wrap_socket(sock, server_hostname=engine_ip) as ssock:
+                ssock.sendall(token.encode("utf-8"))
+                response = pickle.loads(ssock.recv(1024))
+                if response[0]=='TOKEN VALIDO':
+                    id = response[1]
+                    return True
+                else:
+                    return False
     except:
-        authenticate_with_engine(token, engine_ip, engine_port)
-        return False
+        return authenticate_with_engine(token, engine_ip, engine_port)
 
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
 def unirseEspectaculo(id, ip_engine, puerto_engine):

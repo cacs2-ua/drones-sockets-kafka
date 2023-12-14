@@ -13,9 +13,14 @@ import threading
 import pickle
 import requests
 from cryptography.fernet import Fernet
+import base64
+import ssl
 
 
 # Variables globales
+cert = 'certServ.pem'
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(cert, cert)
 os.system('color')
 end = False
 start = False
@@ -34,7 +39,7 @@ def encryptMensaje(mensaje):
     with open("fernet.key", "rb") as file:
         clave = file.read()
     cipher_suite = Fernet(clave)
-    return cipher_suite.encrypt(pickle.dumps(mensaje)).decode("utf-8")
+    return pickle.loads(cipher_suite.encrypt(pickle.dumps(mensaje)))
     '''
     return mensaje
 
@@ -44,7 +49,7 @@ def decryptMensaje(mensaje):
     with open("fernet.key", "rb") as file:
         clave = file.read()
     cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.decrypt(mensaje.encode("utf-8")))
+    return pickle.loads(cipher_suite.decrypt(pickle.dumps(mensaje)))
     '''
     return mensaje
 
@@ -70,8 +75,9 @@ def getId(token):
 def listen_for_drones(ip,port,stop_event,numDrones):
     first = True
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((ip,port))
-        s.listen()
+        bindsocket = socket.socket()
+        bindsocket.bind((ip, port))
+        bindsocket.listen(5)
         sleep(1)
         while True:
             global start
@@ -81,6 +87,7 @@ def listen_for_drones(ip,port,stop_event,numDrones):
             global dronCount
             if stop_event.is_set() or stop:
                 break
+            '''
             conn, addr = s.accept()
             with conn:
                 token = conn.recv(1024).decode('utf-8')
@@ -95,14 +102,38 @@ def listen_for_drones(ip,port,stop_event,numDrones):
                         producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
                             value_serializer=lambda x: 
                             json.dumps(x).encode('utf-8'))
-                        data = {"destino" : bbDD}
-                        data = encryptMensaje(data)
+                        data = {"destino" : encryptMensaje(bbDD)}
                         producer3.send('destinos', value={"message": data})
                         producer3.flush()
                     first = False
                 else:
                     data = ('TOKEN INVALIDO',0)
                     conn.sendall(pickle.dumps(data))
+            '''
+            newsocket, fromaddr = bindsocket.accept()
+            connstream = context.wrap_socket(newsocket, server_side=True)
+            try:
+                token = connstream.recv(1024).decode('utf-8')
+                if is_token_valid(token) and dronCount<numDrones:
+                    dronCount += 1
+                    id = getId(token)
+                    data = ('TOKEN VALIDO',id)
+                    connstream.sendall(pickle.dumps(data))
+                    sleep(1)
+                    start = True
+                    if first!=True:
+                        producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
+                            value_serializer=lambda x: 
+                            json.dumps(x).encode('utf-8'))
+                        data = {"destino" : encryptMensaje(bbDD)}
+                        producer3.send('destinos', value={"message": data})
+                        producer3.flush()
+                    first = False
+                else:
+                    data = ('TOKEN INVALIDO',0)
+                    connstream.sendall(pickle.dumps(data))
+            finally:
+                connstream.close()
         return
 
 
@@ -368,8 +399,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
     if stop:
         return auxMap
 
-    data = {"destino" : bbDD}
-    data = encryptMensaje(data)
+    data = {"destino" : encryptMensaje(bbDD)}
     producer.send('destinos', value={"message": data})
     producer.flush()
     
@@ -390,8 +420,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                     auxMap[i].append((0,False))
         mostrarMapa(False,bbDD)
 
-    data2 = {"mapa" : auxMap, "completo" : False, "cancel" : cancel}
-    data2 = encryptMensaje(data2)
+    data2 = {"mapa" : encryptMensaje(auxMap), "completo" : False, "cancel" : cancel}
     producer2.send('posiciones', value={"message": data2})
     producer2.flush()
 
@@ -405,7 +434,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
             if stop:
                 return mapa
             aux = mensaje.value["message"]
-            aux = decryptMensaje(aux)
+            aux["posicion"] = decryptMensaje(aux["posicion"])
+            aux["id"] = decryptMensaje(aux["id"])
             mapa = recalcularMapa(aux["posicion"],aux["id"])
 
             actualizarConexion(aux["id"])
@@ -421,15 +451,14 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                         conexiones.pop(i)
                         break
                 if last:
-                    data = {"destino" : ["Stop",aux["id"]]}
+                    data = {"destino" : encryptMensaje(["Stop",aux["id"]])}
                 else:
-                    data = {"destino" : ["Wait",aux["id"]]}
+                    data = {"destino" : encryptMensaje(["Wait",aux["id"]])}
                 new = (aux["id"],True)
                 completed.append((aux["id"],destino))
                 mapa[destino[0]][destino[1]] = new
             else:
-                data = {"destino" : bbDD}
-            data = encryptMensaje(data)
+                data = {"destino" : encryptMensaje(bbDD)}
             producer.send('destinos', value={"message": data})
             producer.flush()
 
@@ -448,8 +477,7 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                         end = False
                         break
             mostrarMapa((end and last),bbDD)
-            data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : cancel}
-            data2 = encryptMensaje(data2)
+            data2 = {"mapa" : encryptMensaje(mapa), "completo" : end and last, "cancel" : cancel}
             producer2.send('posiciones', value={"message": data2})
             producer2.flush()
             break

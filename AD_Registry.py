@@ -6,9 +6,11 @@ import socket
 import json
 import uuid
 import pickle
+import ssl
 
 os.system('color')
 DATABASE_PATH = "drones.json"
+cert = 'certServ.pem'
 
 
 def register_drone(id, alias):
@@ -45,8 +47,27 @@ def get_next_drone_id():
     return int(data["drones"][-1]["id"])+1
 
 
+def deal_with_client(connstream):
+    respuesta = connstream.recv(1024).decode('utf-8')
+    if respuesta=="FIN":
+        return False
+    with connstream:
+        alias = respuesta
+        id = get_next_drone_id()
+        send = register_drone(id, alias)
+        connstream.sendall(pickle.dumps(send))
+    return True
+
+
 def conexion_registry(host,port):
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, cert)
+
+    bindsocket = socket.socket()
+    bindsocket.bind((host, port))
+    bindsocket.listen(5)
     while(True):
+        '''
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((host, port))
             s.listen()
@@ -61,6 +82,17 @@ def conexion_registry(host,port):
                 id = get_next_drone_id()
                 send = register_drone(id, alias)
                 conn.sendall(pickle.dumps(send))
+        '''
+        
+        newsocket, fromaddr = bindsocket.accept()
+        connstream = context.wrap_socket(newsocket, server_side=True)
+        print('Conexion recibida')
+        try:
+            res = deal_with_client(connstream)
+            if res == False:
+                break
+        finally:
+            connstream.close()
 
 
 if __name__ == "__main__":
