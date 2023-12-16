@@ -3,10 +3,12 @@ import json
 from termcolor import colored
 import sys
 import os
+import time
+from time import sleep
 
 os.system('color')
 
-ip = '192.168.159.160'
+ip = '192.168.221.160'
 
 def mostrarMapa(mapa):
     print("\033c")
@@ -46,6 +48,7 @@ if __name__ == '__main__':
             if response.status_code == 200:
                 diccionario_respuesta=response.json()
                 mostrarMapa(diccionario_respuesta['data'])
+            sleep(1)
 
         except Exception as e:
             response = {
@@ -54,3 +57,5 @@ if __name__ == '__main__':
             'message': f'Error Ocurred: {e}'
             }
             print(json.dumps(response, indent=4, sort_keys=True), end="\n\n")
+            sleep(1)
+        
