@@ -111,4 +111,4 @@ def get_mapa():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='192.168.1.8')
+    app.run(host='192.168.159.160')

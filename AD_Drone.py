@@ -10,7 +10,7 @@ from json import loads
 import socket
 import threading
 import pickle
-from cryptography.fernet import Fernet
+#from cryptography.fernet import Fernet
 import ssl
 import base64
 

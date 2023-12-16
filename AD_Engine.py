@@ -12,7 +12,7 @@ import socket
 import threading
 import pickle
 import requests
-from cryptography.fernet import Fernet
+#from cryptography.fernet import Fernet
 import base64
 import ssl
 
