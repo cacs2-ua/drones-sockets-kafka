@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Information</title>
+    <script>
+        function fetchUserData() {
+          const userId = window.location.pathname.split('/').pop();
+          fetch(`https://192.168.221.160/users/${userId}`)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('User not found');
+              }
+              return response.json();
+            })
+            .then(data => {
+              document.getElementById('userData').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+              document.getElementById('userData').textContent = error.message;
+            });
+        }
+      
+        setInterval(fetchUserData, 1000);
+        window.onload = fetchUserData;
+      </script>
+</head>
+<body>
+    <h1>User Information</h1>
+    <pre id="userData">Loading...</pre>
+</body>
+</html>
