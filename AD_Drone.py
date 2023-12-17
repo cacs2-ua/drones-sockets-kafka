@@ -12,38 +12,57 @@ import threading
 import pickle
 from cryptography.fernet import Fernet
 import ssl
-import base64
+import uuid
+import requests
+import urllib3
 
 # Variables globales
 os.system('color')
-id : int
+id = None
 alias : str = ""
+password : str = ""
+key = None
 DATABASE_PATH = "drones.json"
 context = ssl._create_unverified_context()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def encryptMensaje(mensaje):
-    '''
-    with open("fernet.key", "rb") as file:
-        clave = file.read()
-    cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.encrypt(pickle.dumps(mensaje)))
-    '''
+    global key
+    if key != None:
+        cipher_suite = Fernet(key)
+        return cipher_suite.encrypt(mensaje)
     return mensaje
 
 
 def decryptMensaje(mensaje):
-    '''
-    with open("fernet.key", "rb") as file:
-        clave = file.read()
-    cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.decrypt(pickle.dumps(mensaje)))
-    '''
+    global key
+    if key != None:
+        cipher_suite = Fernet(key)
+        return cipher_suite.decrypt(mensaje)
     return mensaje
 
 
+def update_token(idDron, ip_registry, password):
+    try:
+        url = 'http://' + ip_registry + ':3333/dron'
+        token = str(uuid.uuid4())
+        data = {
+            "id": idDron,
+            "password": password,
+            "token": token
+        }
+        response = requests.put(url, json=data)
+        if response.status_code != 200 or response.json()["error"] == True:
+            return False, token
+        
+        return True, token
+    except:
+        return False, token
+
+
 # Registrar un dron en AD_Registry
-def connect_to_registry(alias,host,port):
+def connect_to_registry(alias,host,port,password):
     while True:
         try:
             '''
@@ -56,7 +75,7 @@ def connect_to_registry(alias,host,port):
             '''
             with socket.create_connection((host, port)) as sock:
                 with context.wrap_socket(sock, server_hostname=host) as ssock:
-                    ssock.sendall(alias.encode("utf-8"))
+                    ssock.sendall(pickle.dumps((alias, password)))
                     ret = ssock.recv(1024)
                     ret = pickle.loads(ret)
                     return ret[0], ret[1]
@@ -65,12 +84,55 @@ def connect_to_registry(alias,host,port):
             print("\n\n" + '\x1b[5;30;41m' + " No se puede establecer conexión con AD_Registry. Reintentando en 5 segundos... " + '\x1b[0m')
             sleep(5)
 
+
+def post_data(ip,alias,password):
+    try:
+        token = str(uuid.uuid4())
+        url = 'http://' + ip + ':3333/dron'
+        data = {
+            "alias": alias,
+            "password": password,
+            "token": token
+        }
+        response = requests.post(url, json=data)
+        
+        if response.status_code == 201:
+            diccionario_respuesta = response.json()
+            if diccionario_respuesta["error"] == False:
+                return diccionario_respuesta["data"]["id"], token
+            else:
+                return None, token
+        else:
+            return None, token
+
+    except:
+        return None, ""
+
+
 # Registrar un dron en AD_Registry
 def registrarDron(host,port):
     global alias
     global id
+    global password
     alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
-    id, token = connect_to_registry(alias,host,port)
+    password = str(input("\n\n " + colored(">", 'green') + " Introduce una contraseña para el dron: "))
+    id, token = connect_to_registry(alias,host,port,password)
+    file = open(str(id)+'.txt', 'w')
+    file.write(str(token))
+    file.close()
+    print("\033c" + "\n")
+    print(" " + '\x1b[6;30;42m' + " Dron \"" + alias + "\" registrado correctamente con ID = " + str(id) + " " + '\x1b[0m' + "\n\n")
+    return id, alias
+
+def api_registrar(host):
+    global alias
+    global id
+    global password
+    alias = str(input("\n\n " + colored(">", 'green') + " Introduce un alias para el dron: "))
+    password = str(input("\n\n " + colored(">", 'green') + " Introduce una contraseña para el dron: "))
+    id, token = post_data(host,alias,password)
+    if id == None:
+        return None, ""
     file = open(str(id)+'.txt', 'w')
     file.write(str(token))
     file.close()
@@ -127,10 +189,10 @@ def enviarMovimiento(pos, destino, puerto_colas, idDron):
     try:
         producer = KafkaProducer(bootstrap_servers=[puerto_colas],
                             value_serializer=lambda x: 
-                            json.dumps(x).encode('utf-8'))
+                            encryptMensaje(json.dumps(x).encode('utf-8')))
 
         pos = calcularMovimiento(pos, destino)
-        data = {"id": encryptMensaje(idDron), "posicion": encryptMensaje(pos)}
+        data = {"id": idDron, "posicion": pos}
         producer.send('movimientos', value={"message": data})
         producer.flush()
         return pos
@@ -152,7 +214,7 @@ def getDestino(puerto_colas, idDron):
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
-            value_deserializer=lambda x: loads(x.decode('utf-8')))
+            value_deserializer=lambda x: loads(decryptMensaje(x).decode('utf-8')))
         goTo = TopicPartition('destinos', 0)
         consumer2.assign([goTo])
         consumer2.seek_to_end(goTo)
@@ -167,7 +229,7 @@ def getDestino(puerto_colas, idDron):
                     pos = enviarMovimiento(pos, pos, puerto_colas, idDron)
             for mensaje in consumer2:
                 aux = mensaje.value["message"]
-                aux["destino"] = decryptMensaje(aux["destino"])
+                aux["destino"] = aux["destino"]
                 '''
                 if first:
                     con = threading.Thread(target=connectionCheck, args=(puerto_colas, idDron, ))
@@ -180,7 +242,7 @@ def getDestino(puerto_colas, idDron):
                     break
                 elif aux["destino"][0]=="Wait" and aux["destino"][1]==idDron:
                     timeout = True
-                    sleep(2)
+                    sleep(1)
                     break
                 dest = (0,0)
                 enter = True
@@ -256,7 +318,7 @@ def readMap(puerto_colas,idDron):
             auto_offset_reset='latest',
             enable_auto_commit=True,
             group_id='drones',
-            value_deserializer=lambda x: loads(x.decode('utf-8')))
+            value_deserializer=lambda x: loads(decryptMensaje(x).decode('utf-8')))
         goTo = TopicPartition('posiciones', 0)
         consumer.assign([goTo])
         consumer.seek_to_end(goTo)
@@ -264,7 +326,7 @@ def readMap(puerto_colas,idDron):
         while end!=True:
             for mensaje in consumer:
                 aux = mensaje.value["message"]
-                aux["mapa"] = decryptMensaje(aux["mapa"])
+                aux["mapa"] = aux["mapa"]
                 mostrarMapa(aux["mapa"],aux["completo"])
                 print(" " + '\x1b[6;30;42m' + " Dron: " + str(idDron) + " " + '\x1b[0m' + "\n")
                 if aux["completo"]==True:
@@ -298,7 +360,7 @@ def realizarEspectaculo(puerto_colas, idDron):
     return
 
 # Función para enviar token al AD_Engine para autenticación
-def authenticate_with_engine(token, engine_ip, engine_port):
+def authenticate_with_engine(token, engine_ip, engine_port, password):
     try:
         global id
         '''
@@ -314,24 +376,42 @@ def authenticate_with_engine(token, engine_ip, engine_port):
             '''
         with socket.create_connection((engine_ip, engine_port)) as sock:
             with context.wrap_socket(sock, server_hostname=engine_ip) as ssock:
-                ssock.sendall(token.encode("utf-8"))
+                ssock.sendall(pickle.dumps((token,password)))
                 response = pickle.loads(ssock.recv(1024))
                 if response[0]=='TOKEN VALIDO':
                     id = response[1]
-                    return True
+                    global key
+                    key = response[2]
+                    return True, "Contraseña y token correctos, uniendo a espectáculo"
+                elif response[0]=='TOKEN INVALIDO':
+                    return False, "Contraseña o token incorrectos, acceso denegado"
                 else:
-                    return False
+                    id = response[1]
+                    return False, "Token caducado, solicitando nuevo token"
+
     except:
-        return authenticate_with_engine(token, engine_ip, engine_port)
+        return authenticate_with_engine(token, engine_ip, engine_port, password)
 
 # En la función unirseEspectaculo, después de verificar si el token no está vacío
 def unirseEspectaculo(id, ip_engine, puerto_engine):
     
-    token = str(input("\n\n " + colored(">", 'green') + " Introduce el token del dron: "))
-    if token != "":
-        if authenticate_with_engine(token, ip_engine, int(puerto_engine)):
-            return True
-    return False
+    if id == None:
+        id = str(input("\n\n " + colored(">", 'green') + " Introduce el ID del dron: "))
+    global password
+    password = str(input("\n\n " + colored(">", 'green') + " Introduce la contraseña del dron: "))
+    try:
+        file = open(str(id)+'.txt', 'r')
+        token = ""
+        token = file.read()
+        file.close()
+        if token == "":
+            return False, "Dron incorrecto, acceso denegado", password
+    except:
+        return False, "Dron incorrecto, acceso denegado", password
+    if password != "":
+        response, message = authenticate_with_engine(token, ip_engine, int(puerto_engine),password)
+        return response, message, password
+    return False, "Contraseña incorrecta, acceso denegado", password
 
 
 def cerrarEspectaculo(engine_ip,engine_port):
@@ -360,7 +440,7 @@ if __name__ == "__main__":
     # Argumentos de linea de parametros
     if len(sys.argv)==5:
         if sys.argv[4] != "-d":
-            print("ERROR. El quinto argumento, si existe, ha de ser -d")
+            print("\n " + '\x1b[5;30;41m' + "ERROR - El quinto argumento, si existe, ha de ser -d " + '\x1b[0m' + "\n\n")
             sys.exit()
         ip_engine,puerto_engine = sys.argv[1].split(':')
         puerto_engine=int(puerto_engine)
@@ -377,17 +457,39 @@ if __name__ == "__main__":
             #sleep(1)
             alias="d" + str(int(data["drones"][-1]["id"])+1)
         #sleep(2)
-        id,token=connect_to_registry(alias,ip_registry,puerto_registry)
+        id,token=connect_to_registry(alias,ip_registry,puerto_registry,"pass")
+        file = open(str(id)+'.txt', 'w')
+        file.write(str(token))
+        file.close()
         #sleep(2)
-        if authenticate_with_engine(token, ip_engine, int(puerto_engine)):
-            realizarEspectaculo(puerto_colas, id)
-            cerrarEspectaculo(ip_engine,puerto_engine)
-            try:
-                finRegistry(ip_registry,puerto_registry)
-            except:
-                pass
+        while True:
+            response, message = authenticate_with_engine(token, ip_engine, int(puerto_engine), "pass")
+            if response:
+                realizarEspectaculo(puerto_colas, id)
+                cerrarEspectaculo(ip_engine,puerto_engine)
+                try:
+                    finRegistry(ip_registry,puerto_registry)
+                except:
+                    pass
+                sys.exit()
+            else:
+                if message == "Token caducado, solicitando nuevo token":
+                    print("\033c")
+                    print("\n " + '\x1b[5;30;41m' + " Autentificación fallida - " + message + " " + '\x1b[0m' + "\n\n")
+                    sleep(1)
+                    resp, token = update_token(id, ip_registry, "pass")
+                    if resp:
+                        file = open(str(id)+'.txt', 'w')
+                        file.write(str(token))
+                        file.close()
+                    else:
+                        print("\033c")
+                        print("\n " + '\x1b[5;30;41m' + " Imposible actualizar token " + '\x1b[0m' + "\n\n")
+                        sys.exit()
+                    continue
+            print("\033c")
+            print("\n " + '\x1b[5;30;41m' + " Autentificación fallida - " + message + " " + '\x1b[0m' + "\n\n")
             sys.exit()
-        sys.exit()
         
 
 
@@ -406,14 +508,22 @@ if __name__ == "__main__":
     check=True
     while(True):
         print(" " + '\x1b[6;30;47m' + " SELECCIONE UNA ACCIÓN " + '\x1b[0m' + "\n")
-        print(" " + colored("1.", 'green') + " Registrar dron")
-        print(" " + colored("2.", 'green') + " Unirse al espectáculo")
-        print(" " + colored("3.", 'green') + " Salir")
+        print(" " + colored("1.", 'green') + " Registrar dron (Sockets)")
+        print(" " + colored("2.", 'green') + " Registrar dron (API)")
+        print(" " + colored("3.", 'green') + " Unirse al espectáculo")
+        print(" " + colored("4.", 'green') + " Salir")
         opcion = int(input(" " + "\n " + colored(">", 'green') + " Opción: "))
         if opcion == 1:
             id, alias = registrarDron(ip_registry,puerto_registry)
         elif opcion == 2:
-            if unirseEspectaculo(id, ip_engine,puerto_engine):
+            id, alias = api_registrar(ip_registry)
+            if id == None:
+                print("\033c")
+                print("\n " + '\x1b[5;30;41m' + " Imposible registrar dron " + '\x1b[0m' + "\n\n")
+                continue
+        elif opcion == 3:
+            response, message, password = unirseEspectaculo(id, ip_engine,puerto_engine)
+            if response:
                 realizarEspectaculo(puerto_colas, id)
                 cerrarEspectaculo(ip_engine,puerto_engine)
                 try:
@@ -423,8 +533,32 @@ if __name__ == "__main__":
                 sys.exit()
             else:
                 print("\033c")
-                print(" " + '\x1b[5;30;41m' + " Autentificación fallida " + '\x1b[0m' + "\n\n")
-        elif opcion == 3:
+                print("\n " + '\x1b[5;30;41m' + " Autentificación fallida - " + message + " " + '\x1b[0m' + "\n\n")
+                if message == "Token caducado, solicitando nuevo token":
+                    sleep(3)
+                    try:
+                        resp, token = update_token(id, ip_registry,password)
+                        if resp:
+                            file = open(str(id)+'.txt', 'w')
+                            file.write(str(token))
+                            file.close()
+                            response, message = authenticate_with_engine(token, ip_engine, int(puerto_engine),password)
+                            if response:
+                                realizarEspectaculo(puerto_colas, id)
+                                cerrarEspectaculo(ip_engine,puerto_engine)
+                                try:
+                                    finRegistry(ip_registry,puerto_registry)
+                                except:
+                                    pass
+                                sys.exit()
+                        else:
+                            print("\033c")
+                            print("\n " + '\x1b[5;30;41m' + " Imposible actualizar token " + '\x1b[0m' + "\n\n")
+
+                    except:
+                        print("\033c")
+                        print("\n " + '\x1b[5;30;41m' + " Imposible actualizar token " + '\x1b[0m' + "\n\n")
+        elif opcion == 4:
             sys.exit()
         else:
             print("\033c")

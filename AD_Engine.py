@@ -12,13 +12,14 @@ import socket
 import threading
 import pickle
 import requests
-#from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet
 import base64
 import ssl
+import hashlib
 
 
 # Variables globales
-cert = 'certServ.pem'
+cert = 'certificados/certificadoSockets.pem'
 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 context.load_cert_chain(cert, cert)
 os.system('color')
@@ -35,39 +36,44 @@ mapa = []
 
 
 def encryptMensaje(mensaje):
-    '''
-    with open("fernet.key", "rb") as file:
-        clave = file.read()
-    cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.encrypt(pickle.dumps(mensaje)))
-    '''
-    return mensaje
+    with open("certificados/fernet.key", "rb") as file:
+        key = file.read()
+    cipher_suite = Fernet(key)
+    return cipher_suite.encrypt(mensaje)
+    #return mensaje
 
 
 def decryptMensaje(mensaje):
-    '''
-    with open("fernet.key", "rb") as file:
-        clave = file.read()
-    cipher_suite = Fernet(clave)
-    return pickle.loads(cipher_suite.decrypt(pickle.dumps(mensaje)))
-    '''
-    return mensaje
+    with open("certificados/fernet.key", "rb") as file:
+        key = file.read()
+    cipher_suite = Fernet(key)
+    return cipher_suite.decrypt(mensaje)
+    #return mensaje
 
 
-def is_token_valid(token):
+def verify_password(stored_password, input_password):
+
+    salt = bytes.fromhex(stored_password[:32])
+    salted_password = salt + input_password.encode('utf-8')
+    hashed_password = hashlib.pbkdf2_hmac('sha256', salted_password, salt, 100000)
+    return hashed_password.hex() == stored_password[32:]
+
+
+def is_token_valid(token,password):
     with open('drones.json', 'r') as file:
         data = json.load(file)
         for drone in data["drones"]:
-            if drone["token"] == token:
-                return True
-    return False
+            if verify_password(drone["token"], token) and verify_password(drone["password"], password):
+                time = drone["time"]
+                return True, time
+    return False, 0.0
 
 
 def getId(token):
     with open('drones.json', 'r') as file:
         data = json.load(file)
         for drone in data["drones"]:
-            if drone["token"] == token:
+            if verify_password(drone["token"], token):
                 return int(drone["id"])
     return None
 
@@ -87,53 +93,68 @@ def listen_for_drones(ip,port,stop_event,numDrones):
             global dronCount
             if stop_event.is_set() or stop:
                 break
-            '''
-            conn, addr = s.accept()
-            with conn:
-                token = conn.recv(1024).decode('utf-8')
-                if is_token_valid(token) and dronCount<numDrones:
-                    dronCount += 1
-                    id = getId(token)
-                    data = ('TOKEN VALIDO',id)
-                    conn.sendall(pickle.dumps(data))
-                    sleep(1)
-                    start = True
-                    if first!=True:
-                        producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
-                            value_serializer=lambda x: 
-                            json.dumps(x).encode('utf-8'))
-                        data = {"destino" : encryptMensaje(bbDD)}
-                        producer3.send('destinos', value={"message": data})
-                        producer3.flush()
-                    first = False
-                else:
-                    data = ('TOKEN INVALIDO',0)
-                    conn.sendall(pickle.dumps(data))
-            '''
-            newsocket, fromaddr = bindsocket.accept()
-            connstream = context.wrap_socket(newsocket, server_side=True)
             try:
-                token = connstream.recv(1024).decode('utf-8')
-                if is_token_valid(token) and dronCount<numDrones:
-                    dronCount += 1
-                    id = getId(token)
-                    data = ('TOKEN VALIDO',id)
-                    connstream.sendall(pickle.dumps(data))
-                    sleep(1)
-                    start = True
-                    if first!=True:
-                        producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
-                            value_serializer=lambda x: 
-                            json.dumps(x).encode('utf-8'))
-                        data = {"destino" : encryptMensaje(bbDD)}
-                        producer3.send('destinos', value={"message": data})
-                        producer3.flush()
-                    first = False
-                else:
-                    data = ('TOKEN INVALIDO',0)
-                    connstream.sendall(pickle.dumps(data))
-            finally:
-                connstream.close()
+                '''
+                conn, addr = s.accept()
+                with conn:
+                    token = conn.recv(1024).decode('utf-8')
+                    if is_token_valid(token) and dronCount<numDrones:
+                        dronCount += 1
+                        id = getId(token)
+                        data = ('TOKEN VALIDO',id)
+                        conn.sendall(pickle.dumps(data))
+                        sleep(1)
+                        start = True
+                        if first!=True:
+                            producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
+                                value_serializer=lambda x: 
+                                json.dumps(x).encode('utf-8'))
+                            data = {"destino" : encryptMensaje(bbDD)}
+                            producer3.send('destinos', value={"message": data})
+                            producer3.flush()
+                        first = False
+                    else:
+                        data = ('TOKEN INVALIDO',0)
+                        conn.sendall(pickle.dumps(data))
+                '''
+                newsocket, fromaddr = bindsocket.accept()
+                connstream = context.wrap_socket(newsocket, server_side=True)
+                try:
+                    recieve = pickle.loads(connstream.recv(1024))
+                    token = recieve[0]
+                    password = recieve[1]
+                    result, timeDron = is_token_valid(token,password)
+                    if result and dronCount<numDrones:
+                        timeDron = time.time() - timeDron
+                        id = getId(token)
+                        if timeDron < 20.0:
+                            dronCount += 1
+                            with open("certificados/fernet.key", "rb") as file:
+                                key = file.read()
+                            data = ('TOKEN VALIDO',id, key)
+                            connstream.sendall(pickle.dumps(data))
+                            sleep(1)
+                            start = True
+                            if first!=True:
+                                producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
+                                    value_serializer=lambda x: 
+                                    encryptMensaje(json.dumps(x).encode('utf-8')))
+                                data = {"destino" : bbDD}
+                                producer3.send('destinos', value={"message": data})
+                                producer3.flush()
+                            first = False
+                        else:
+                            data = ('TOKEN CADUCADO',id)
+                            connstream.sendall(pickle.dumps(data))
+                    else:
+                        data = ('TOKEN INVALIDO',0)
+                        connstream.sendall(pickle.dumps(data))
+                except:
+                    print(recieve)
+                finally:
+                    connstream.close()
+            except:
+                pass
         return
 
 
@@ -234,10 +255,13 @@ def comprobarMapa(mapa):
     return True
 
 
-def mostrarMapa(completo,dest):
+def mostrarMapa(completo,dest,auxMap):
     global mapa
     global dronCount
-    mapaAux = mapa.copy()
+    if mapa == []:
+        mapaAux = auxMap.copy()
+    else:
+        mapaAux = mapa.copy()
     print("\033c")
     if(comprobarMapa(mapaAux)):
         print("  " + '\x1b[6;30;47m' + " MAPA DEL ESPECTACULO " + '\x1b[0m', end="                 ")
@@ -380,18 +404,18 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
 
     producer = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
-                         json.dumps(x).encode('utf-8'))
+                         encryptMensaje(json.dumps(x).encode('utf-8')))
     
     producer2 = KafkaProducer(bootstrap_servers=[puerto_colas],
                          value_serializer=lambda x: 
-                         json.dumps(x).encode('utf-8'))
+                         encryptMensaje(json.dumps(x).encode('utf-8')))
     
     consumer = KafkaConsumer(
         bootstrap_servers=[puerto_colas],
         auto_offset_reset='latest',
         enable_auto_commit=True,
         group_id='drone',
-        value_deserializer=lambda x: loads(x.decode('utf-8')))
+        value_deserializer=lambda x: loads(decryptMensaje(x).decode('utf-8')))
     goTo = TopicPartition('movimientos', 0)
     consumer.assign([goTo])
     consumer.seek_to_end(goTo)
@@ -399,28 +423,23 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
     if stop:
         return auxMap
 
-    data = {"destino" : encryptMensaje(bbDD)}
+    data = {"destino" : bbDD}
     producer.send('destinos', value={"message": data})
     producer.flush()
     
     if first:
         clearMapa()
+        global id
         for i in range (0, 20):
             auxMap.append([])
             for j in range (0, 20):
                 if i==0 and j==0:
-                    for a in bbDD:
-                        if a[0]==id:
-                            if a[1][0]==0 and a[1][1]==0:
-                                auxMap[i].append((id,True))
-                            else:
-                                auxMap[i].append((id,False))
-                            break
+                    auxMap[i].append((0,False))
                 else:
                     auxMap[i].append((0,False))
-        mostrarMapa(False,bbDD)
+        mostrarMapa(False,bbDD,auxMap)
 
-    data2 = {"mapa" : encryptMensaje(auxMap), "completo" : False, "cancel" : cancel}
+    data2 = {"mapa" : auxMap, "completo" : False, "cancel" : cancel}
     producer2.send('posiciones', value={"message": data2})
     producer2.flush()
 
@@ -430,12 +449,11 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
         for mensaje in consumer:
             global mapa
             mapa = auxMap
-            sleep(0.05)
             if stop:
                 return mapa
             aux = mensaje.value["message"]
-            aux["posicion"] = decryptMensaje(aux["posicion"])
-            aux["id"] = decryptMensaje(aux["id"])
+            aux["posicion"] = aux["posicion"]
+            aux["id"] = aux["id"]
             mapa = recalcularMapa(aux["posicion"],aux["id"])
 
             actualizarConexion(aux["id"])
@@ -451,14 +469,14 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                         conexiones.pop(i)
                         break
                 if last:
-                    data = {"destino" : encryptMensaje(["Stop",aux["id"]])}
+                    data = {"destino" : ["Stop",aux["id"]]}
                 else:
-                    data = {"destino" : encryptMensaje(["Wait",aux["id"]])}
+                    data = {"destino" : ["Wait",aux["id"]]}
                 new = (aux["id"],True)
                 completed.append((aux["id"],destino))
                 mapa[destino[0]][destino[1]] = new
             else:
-                data = {"destino" : encryptMensaje(bbDD)}
+                data = {"destino" : bbDD}
             producer.send('destinos', value={"message": data})
             producer.flush()
 
@@ -476,8 +494,8 @@ def comenzarEspectaculo(puerto_colas,bbDD,last,first,auxMap):
                     if mapa[pos[1][0]][pos[1][1]][1]==False:
                         end = False
                         break
-            mostrarMapa((end and last),bbDD)
-            data2 = {"mapa" : encryptMensaje(mapa), "completo" : end and last, "cancel" : cancel}
+            mostrarMapa((end and last),bbDD,mapa)
+            data2 = {"mapa" : mapa, "completo" : end and last, "cancel" : cancel}
             producer2.send('posiciones', value={"message": data2})
             producer2.flush()
             break
@@ -499,7 +517,7 @@ if __name__ == "__main__":
     # Argumentos de linea de parametros
     if(len(sys.argv))!=4:
         print("\033c")
-        sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas> <IP:Puerto Weather>")
+        sys.exit("\n " + '\x1b[5;30;41m' + " Numero de argumentos incorrecto " + '\x1b[0m' + "\n\n " + colored(">", 'green') + " Uso:  python AD_Engine.py <Puerto Escucha> <Numero Drones> <IP:Puerto Colas>")
     
     ip_escucha, puerto_escucha = sys.argv[1].split(':')
     puerto_escucha=int(puerto_escucha)

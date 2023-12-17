@@ -55,40 +55,14 @@ def get_dron():
     try:
         if request.method == 'GET':
 
-            data = request.get_json()
             with open("drones.json", 'r') as file:
                 bbDD = json.load(file)
                 file.close()
 
-            idDron = data["id"]
-            token = data["token"]
-            stored_password = None
-            timeDron = 0.0
-            repeat = False
-            for dron in bbDD["drones"]:
-                if dron["id"] == idDron:
-                    stored_password = dron["token"]
-                    timeDron = dron["time"]
-                    break
-            if stored_password is not None:
-                result = verify_password(stored_password, token)
-                checkTime = time.time() - timeDron
-            else:
-                result = False
-                checkTime = timeDron
-            if result:
-                if checkTime > 20.0:
-                    message = "Token caducado, solicitando nuevo token"
-                    result = False
-                    repeat = True
-                else:
-                    message = "Token correcto, uniendo a espectáculo"
-            else:
-                message = "Token incorrecto, acceso denegado"
+            message = "Datos obtenidos correctamente"
             response = {
-            'correct': result,
+            'data': bbDD["drones"],
             'error': False,
-            'repeat': repeat,
             'message': message
             }
             return jsonify(response), 200
@@ -97,7 +71,7 @@ def get_dron():
         response = {
         'data': None,
         'error': True,
-        'message': f'Error Occurred: {e}'
+        'message': f'Error ocurrido: {e}'
         }
         return jsonify(response), 500
 
@@ -143,6 +117,34 @@ def post_dron():
         return jsonify(response), 500
 
 
+@app.route('/dron', methods=['DELETE'])
+def delete_data():
+    try:
+        if request.method == 'DELETE':
+            with open("drones.json", 'r') as file:
+                bbDD = json.load(file)
+                file.close()
+            bbDD["drones"] = []
+            with open("drones.json", 'w') as file:
+                json.dump(bbDD, file, indent=4)
+
+            message = "Datos eliminados correctamente"
+            response = {
+            'data': bbDD,
+            'error': False,
+            'message': message
+            }
+            return jsonify(response), 200
+    
+    except Exception as e:
+        response = {
+        'data': None,
+        'error': True,
+        'message': f'Error ocurrido: {e}'
+        }
+        return jsonify(response), 500
+
+
 @app.route('/dron', methods=['PUT'])
 def put_dron():
     try:
@@ -183,4 +185,4 @@ def put_dron():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='172.27.218.166')
+    app.run(host='0.0.0.0')

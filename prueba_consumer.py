@@ -3,12 +3,12 @@ import json
 import uuid
 from time import sleep
 
-ip = "172.27.218.166"
+ip = "192.168.1.8"
 
 def get_data():
     try:
-        url = 'http://' + ip + ':5000/data'
-        response= requests.get(url)
+        url = 'https://' + ip + ':5000/dron'
+        response= requests.get(url,verify=False)
         if response.status_code == 200:
             diccionario_respuesta=response.json()
             print(json.dumps(diccionario_respuesta, indent=4, sort_keys=True), end="\n\n\n\n\n\n")
@@ -27,7 +27,7 @@ def checkDron(idDron, token):
         next = True
         while next:
             next = False
-            url = 'http://' + ip + ':5000/dron'
+            url = 'https://' + ip + ':5000/dron'
             data = {
                 "id": idDron,
                 "alias": "alias",
@@ -48,7 +48,7 @@ def checkDron(idDron, token):
                         "id": idDron,
                         "token": token
                     }
-                    response = requests.put(url, json=data)
+                    response = requests.put(url, json=data,verify=False)
                     if response.status_code != 200 or response.json()["error"] == True:
                         return False, token
                 else:
@@ -65,12 +65,12 @@ def checkDron(idDron, token):
 
 def post_data(token):
     try:
-        url = 'http://' + ip + ':5000/dron'
+        url = 'https://' + ip + ':5000/dron'
         data = {
             "alias": "alias",
             "token": token
         }
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data,verify=False)
         
         if response.status_code == 201:
             diccionario_respuesta = response.json()
@@ -89,9 +89,11 @@ def post_data(token):
 if __name__ == "__main__":
 
     token = str(uuid.uuid4())
-    
+    '''
     idDron = post_data(token)
     #sleep(20)
     result, token = checkDron(idDron, token)
     if result:
         print("Continuamos")
+    '''
+    get_data()
