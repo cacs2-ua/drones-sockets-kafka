@@ -34,3 +34,19 @@ except:
     with open('mapa.json', 'w') as file:
         json.dump(data, file, indent=4)
         file.close()
+
+try:
+    with open('auditorias.json', 'r') as file:
+        data = json.load(file)
+        file.close()
+
+    data["auditorias"] = []
+
+    with open('auditorias.json', 'w') as file:
+        json.dump(data, file)
+        file.close()
+except:
+    data = { "auditorias": [] }
+    with open('auditorias.json', 'w') as file:
+        json.dump(data, file, indent=4)
+        file.close()

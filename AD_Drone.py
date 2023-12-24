@@ -22,7 +22,6 @@ id = None
 alias : str = ""
 password : str = ""
 key = None
-DATABASE_PATH = "drones.json"
 context = ssl._create_unverified_context()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -45,14 +44,14 @@ def decryptMensaje(mensaje):
 
 def update_token(idDron, ip_registry, password):
     try:
-        url = 'http://' + ip_registry + ':3333/dron'
+        url = 'https://' + ip_registry + ':3333/dron'
         token = str(uuid.uuid4())
         data = {
             "id": idDron,
             "password": password,
             "token": token
         }
-        response = requests.put(url, json=data)
+        response = requests.put(url, json=data, verify=False)
         if response.status_code != 200 or response.json()["error"] == True:
             return False, token
         
@@ -65,14 +64,6 @@ def update_token(idDron, ip_registry, password):
 def connect_to_registry(alias,host,port,password):
     while True:
         try:
-            '''
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((host, port))
-                s.sendall(alias.encode("utf-8"))
-                ret = s.recv(1024)
-                ret = pickle.loads(ret)
-            return ret[0], ret[1]
-            '''
             with socket.create_connection((host, port)) as sock:
                 with context.wrap_socket(sock, server_hostname=host) as ssock:
                     ssock.sendall(pickle.dumps((alias, password)))
@@ -88,13 +79,13 @@ def connect_to_registry(alias,host,port,password):
 def post_data(ip,alias,password):
     try:
         token = str(uuid.uuid4())
-        url = 'http://' + ip + ':3333/dron'
+        url = 'https://' + ip + ':3333/dron'
         data = {
             "alias": alias,
             "password": password,
             "token": token
         }
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, verify=False)
         
         if response.status_code == 201:
             diccionario_respuesta = response.json()
@@ -254,7 +245,7 @@ def getDestino(puerto_colas, idDron):
                         dest = a[1]
                         break
                 if dest[0]!=pos[0] or dest[1]!=pos[1]:
-                    sleep(0.2)
+                    sleep(0.1)
                     if enter:
                         pos = enviarMovimiento(pos, dest, puerto_colas, idDron)
                 if end==True:
@@ -363,17 +354,6 @@ def realizarEspectaculo(puerto_colas, idDron):
 def authenticate_with_engine(token, engine_ip, engine_port, password):
     try:
         global id
-        '''
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((engine_ip, engine_port))
-            s.sendall(token.encode("utf-8"))
-            response = pickle.loads(s.recv(1024))
-            if response[0]=='TOKEN VALIDO':
-                id = response[1]
-                return True
-            else:
-                return False
-            '''
         with socket.create_connection((engine_ip, engine_port)) as sock:
             with context.wrap_socket(sock, server_hostname=engine_ip) as ssock:
                 ssock.sendall(pickle.dumps((token,password)))
@@ -447,17 +427,7 @@ if __name__ == "__main__":
         puerto_colas = sys.argv[2]
         ip_registry, puerto_registry = sys.argv[3].split(':')
         puerto_registry=int(puerto_registry)
-        with open(DATABASE_PATH, 'r') as file:
-            data = json.load(file)
-        
-        if not data["drones"]:
-            #sleep(1)
-            alias="d1"
-        else:
-            #sleep(1)
-            alias="d" + str(int(data["drones"][-1]["id"])+1)
-        #sleep(2)
-        id,token=connect_to_registry(alias,ip_registry,puerto_registry,"pass")
+        id,token=connect_to_registry("dron",ip_registry,puerto_registry,"pass")
         file = open(str(id)+'.txt', 'w')
         file.write(str(token))
         file.close()

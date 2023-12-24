@@ -93,6 +93,14 @@ app.get('/mapa.json', (req, res) => {
   res.sendFile(path.join(__dirname, './mapa.json'));
 });
 
+app.get('/auditorias.json', (req, res) => {
+  res.sendFile(path.join(__dirname, './auditorias.json'));
+});
+
+app.get('/weather_bd.json', (req, res) => {
+  res.sendFile(path.join(__dirname, './weather_bd.json'));
+});
+
 setInterval(() => {
   axios.get(apiUrl, { httpsAgent: agent })
   .then(response => {
@@ -103,4 +111,4 @@ setInterval(() => {
   .catch(error => {
     console.error('Error al realizar la solicitud:', error.message);
   });
-}, 500);
+}, 200);

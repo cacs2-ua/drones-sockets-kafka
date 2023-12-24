@@ -1,58 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Espectaculo</title>
-    <style>
-        /* Add CSS here */
-
-        body {
-            background-color: #E6E6FA;
-        }
-            #mapContainer {
-            display: flex;
-            flex-direction: column;
-            font-family: monospace;
-            text-align: center;
-            margin-left: 4%;
-            margin-top: 1%;
-        }
-
-        .map-row {
-            display: flex;
-        }
-
-        .map-cell {
-            width: 25px; /* Adjust width as needed */
-            height: 25px; /* Adjust height as needed */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-        }
-
-        .row-number {
-            margin-bottom: 20px; /* Extra space below the row number */
-        }
-
-        .header-row .map-cell {
-            font-weight: bold;
-        }
-
-        .number-cell-red { /* Class for cells with numbers and false */
-            color: red;
-    }
-
-        .number-cell-green { /* New class for cells with numbers */
-            color: green; /* Set the text color to green */
-    }
-    </style>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <title>Espectaculo</title>
+        <style>
+            /* Add CSS here */
+    
+            body {
+                background-color: #E6E6FA;
+            }
+                #mapContainer {
+                display: flex;
+                flex-direction: column;
+                font-family: monospace;
+                text-align: center;
+                margin-left: 6%;
+                margin-top: 1%;
+            }
+    
+            .map-row {
+                display: flex;
+            }
+    
+            .map-cell {
+                width: 25px; /* Adjust width as needed */
+                height: 25px; /* Adjust height as needed */
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-weight: bold;
+            }
+    
+            .row-number {
+                margin-bottom: 20px; /* Extra space below the row number */
+            }
+    
+            .header-row .map-cell {
+                font-weight: bold;
+            }
+    
+            /* Updated CSS for colored cells */
+            .number-cell-red { /* Class for cells with numbers and false */
+                background-color: red; /* Red background */
+                color: black; /* Black text */
+                padding: 2px; /* Padding for aesthetic */
+            }
+            .number-cell-green { /* Class for cells with numbers and true */
+                background-color: green; /* Green background */
+                color: black; /* Black text */
+                padding: 2px; /* Padding for aesthetic */
+            }
+        </style>
+    </head>
 <body>
     <div style="padding:10px;display:flex;justify-content:center;font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"><h1>Espectáculo en vivo</h1></div>
     <div id="mapContainer">
         <!-- Map content will be populated here -->
     </div>
+    <div id="auditoriasContainer" style="position: absolute; right: 200px; top: 20px; width: 300px; max-height: 90%; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background-color: #E6E6FA; font-family: 'Arial', sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+        <!-- Auditorias content will be populated here -->
+    </div>
+    
+
+    <div id="updateMessage" style="position: absolute; right: 320px; top: 10px; color: green; font-style: italic;">
+        <!-- Update message will be shown here -->
+    </div>
+
+    <div id="weatherContainer" style="margin-top: 20px; text-align: center; font-family: 'Arial', sans-serif;">
+        <!-- Weather content will be populated here -->
+    </div>
+    
+    
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -62,11 +80,25 @@
                     .then(data => renderMap(data.mapa))
                     .catch(error => console.error('Error:', error));
             }
+            function fetchAndUpdateAuditorias() {
+                     fetch('/auditorias.json')
+                    .then(response => response.json())
+                    .then(data => renderAuditorias(data.auditorias))
+                    .catch(error => console.error('Error:', error));
+    }
+
+            function fetchAndUpdateWeather() {
+                    fetch('/weather_bd.json')
+                    .then(response => response.json())
+                    .then(data => renderWeather(data))
+                    .catch(error => console.error('Error:', error));
+}
     
             function renderMap(mapData) {
+                //console.log("renderMap function is being executed");
                 const mapContainer = document.getElementById('mapContainer');
                 let mapHTML = '<div class="map-row header-row">';
-    
+                let map2HTML = '<h3>Últimas Eventos</h3>';
                 // Header row for numbers 1 to 20
                 mapHTML += '<div class="map-cell"></div>'; // Empty top-left corner
                 for (let i = 1; i <= 20; i++) {
@@ -90,9 +122,48 @@
     
                 mapContainer.innerHTML = mapHTML;
             }
+
+            function renderAuditorias(auditoriasData) {
+                console.log("renderAuditorias function is being executed");
+    const auditoriasContainer = document.getElementById('auditoriasContainer');
+    const updateMessage = document.getElementById('updateMessage');
+    
+    let auditoriasHTML = '<h2>Últimos Eventos</h2>';
+
+
+    // Get the last ten elements
+    const lastTen = auditoriasData.slice(-10);
+
+    lastTen.forEach(auditoria => {
+    auditoriasHTML += `
+        <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #ccc;">
+            <strong>${auditoria.Hora}</strong>: ${auditoria.Descripcion}
+        </div>`;
+});
+
+    auditoriasContainer.innerHTML = auditoriasHTML;
+
+    // Optionally, clear the message after a delay
+    setTimeout(() => {
+        updateMessage.innerHTML = '';
+    }, 3000); // Clears the message after 3 seconds
+}
+
+    function renderWeather(weatherData) {
+        const weatherContainer = document.getElementById('weatherContainer');
+        let weatherHTML = `<h2>Información del Clima</h2>`;
+        weatherHTML += `<p>Ciudad: <strong>${weatherData.Ciudad}</strong>-Temperatura: <strong>${weatherData.Temperatura}°C</strong></p>`;
+        
+        weatherContainer.innerHTML = weatherHTML;
+    }
+
     
             fetchAndUpdateMap(); // Initial fetch and render
-            setInterval(fetchAndUpdateMap, 500); // Update every 100 ms
+            fetchAndUpdateAuditorias(); // Initial fetch and render for auditorias
+            fetchAndUpdateWeather(); // Initial fetch and render for weather
+            setInterval(fetchAndUpdateMap, 200); // Update every 100 ms
+            setInterval(fetchAndUpdateAuditorias, 200); // Update auditorias every 10 seconds
+            setInterval(fetchAndUpdateWeather, 200); // Update weather every 5 minutes (300000 ms)
         });
     </script>
     

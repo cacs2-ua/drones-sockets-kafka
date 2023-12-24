@@ -120,41 +120,41 @@ def post_dron():
 
 @app.route('/dron', methods=['PUT'])
 def put_dron():
-    #try:
-    if request.method == 'PUT':
+    try:
+        if request.method == 'PUT':
 
-        data = request.get_json()
-        with open("drones.json", 'r') as file:
-            bbDD = json.load(file)
-            file.close()
+            data = request.get_json()
+            with open("drones.json", 'r') as file:
+                bbDD = json.load(file)
+                file.close()
 
-        idDron = data["id"]
-        password = data["password"]
-        token = data["token"]
-        token = hash_password(token)
-        for dron in bbDD["drones"]:
-            if dron["id"] == idDron:
-                if verify_password(dron["password"], password) == False:
-                    response = {
-                    'data': data,
-                    'error': True,
-                    'message': 'Password incorrecto'
-                    }
-                    return jsonify(response), 501
-                dron["token"] = token
-                dron["time"] = time.time()
-                break
+            idDron = data["id"]
+            password = data["password"]
+            token = data["token"]
+            token = hash_password(token)
+            for dron in bbDD["drones"]:
+                if dron["id"] == idDron:
+                    if verify_password(dron["password"], password) == False:
+                        response = {
+                        'data': data,
+                        'error': True,
+                        'message': 'Password incorrecto'
+                        }
+                        return jsonify(response), 501
+                    dron["token"] = token
+                    dron["time"] = time.time()
+                    break
 
-        with open("drones.json", 'w') as file:
-            json.dump(bbDD, file, indent=4)
-        
-        response = {
-        'data': data,
-        'error': False,
-        'message': 'Items Put Successfully'
-        }
-        return jsonify(response), 200
-    '''
+            with open("drones.json", 'w') as file:
+                json.dump(bbDD, file, indent=4)
+            
+            response = {
+            'data': data,
+            'error': False,
+            'message': 'Items Put Successfully'
+            }
+            return jsonify(response), 200
+
     except Exception as e:
         response = {
         'data': None,
@@ -162,7 +162,7 @@ def put_dron():
         'message': f'Error Occurred: {e}'
         }
         return jsonify(response), 500
-    '''
+
 
 @app.route('/dron', methods=['DELETE'])
 def delete_data():
@@ -237,23 +237,6 @@ def conexion_registry(host,port):
     bindsocket.listen(5)
     while(True):
         try:
-            '''
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind((host, port))
-                s.listen()
-                print(f" Escuchando en {host}:{port}")
-                conn, addr = s.accept()
-                respuesta = conn.recv(1024).decode('utf-8')
-                if respuesta=="FIN":
-                    break
-                with conn:
-                    print(f" Conexión desde {addr}")
-                    alias = respuesta
-                    id = get_next_drone_id()
-                    send = register_drone(id, alias)
-                    conn.sendall(pickle.dumps(send))
-            '''
-            
             newsocket, fromaddr = bindsocket.accept()
             connstream = context.wrap_socket(newsocket, server_side=True)
             print('Conexion recibida')
@@ -279,7 +262,7 @@ if __name__ == "__main__":
     print("\033c")
     con1 = threading.Thread(target=conexion_registry, args=(ip_registry,puerto_escucha, ))
     con1.start()
-    app.run(host='0.0.0.0', port=3333)
+    app.run(host='0.0.0.0', port=3333, ssl_context=('certificados/certificado_registry2.crt', 'certificados/clave_privada_registry2.pem'))
     con1.join()
     print("\n " + '\x1b[6;30;47m' + " ESPECTACULO FINALIZADO " + '\x1b[0m')
     sys.exit()

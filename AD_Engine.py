@@ -13,9 +13,9 @@ import threading
 import pickle
 import requests
 from cryptography.fernet import Fernet
-import base64
 import ssl
 import hashlib
+from datetime import datetime
 
 
 # Variables globales
@@ -33,6 +33,7 @@ bbDD = []
 completed = []
 conexiones = []
 mapa = []
+auditorias = []
 
 
 def encryptMensaje(mensaje):
@@ -91,32 +92,20 @@ def listen_for_drones(ip,port,stop_event,numDrones):
             global id
             global stop
             global dronCount
+            global auditorias
+            if auditorias!=[]:
+                while auditorias!=[]:
+                    mensaje = auditorias.pop(0)
+                    file = open('auditorias.json', 'r')
+                    data = json.load(file)
+                    file.close()
+                    data["auditorias"].append(mensaje)
+                    file = open('auditorias.json', 'w')
+                    json.dump(data, file, indent=4)
+                    file.close()
             if stop_event.is_set() or stop:
                 break
             try:
-                '''
-                conn, addr = s.accept()
-                with conn:
-                    token = conn.recv(1024).decode('utf-8')
-                    if is_token_valid(token) and dronCount<numDrones:
-                        dronCount += 1
-                        id = getId(token)
-                        data = ('TOKEN VALIDO',id)
-                        conn.sendall(pickle.dumps(data))
-                        sleep(1)
-                        start = True
-                        if first!=True:
-                            producer3 = KafkaProducer(bootstrap_servers=[puerto_colas],
-                                value_serializer=lambda x: 
-                                json.dumps(x).encode('utf-8'))
-                            data = {"destino" : encryptMensaje(bbDD)}
-                            producer3.send('destinos', value={"message": data})
-                            producer3.flush()
-                        first = False
-                    else:
-                        data = ('TOKEN INVALIDO',0)
-                        conn.sendall(pickle.dumps(data))
-                '''
                 newsocket, fromaddr = bindsocket.accept()
                 connstream = context.wrap_socket(newsocket, server_side=True)
                 try:
@@ -133,6 +122,7 @@ def listen_for_drones(ip,port,stop_event,numDrones):
                                 key = file.read()
                             data = ('TOKEN VALIDO',id, key)
                             connstream.sendall(pickle.dumps(data))
+                            auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": fromaddr[0], "Accion": "Autentificacion exitosa", "Descripcion": "Se ha autentificado un dron con id " + str(id) + " y token " + token + " correctamente."})
                             sleep(1)
                             start = True
                             if first!=True:
@@ -146,11 +136,13 @@ def listen_for_drones(ip,port,stop_event,numDrones):
                         else:
                             data = ('TOKEN CADUCADO',id)
                             connstream.sendall(pickle.dumps(data))
+                            auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": fromaddr[0], "Accion": "Autentificacion fallida (caducado)", "Descripcion": "Se ha intentado autentificar un dron con id " + str(id) + " y token caducado " + token + "."})
                     else:
                         data = ('TOKEN INVALIDO',0)
                         connstream.sendall(pickle.dumps(data))
+                        auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": fromaddr[0], "Accion": "Autentificacion fallida (invalido)", "Descripcion": "Se ha intentado autentificar un dron con id " + str(id) + " y token invalido " + token + "."})
                 except:
-                    print(recieve)
+                    pass
                 finally:
                     connstream.close()
             except:
@@ -173,6 +165,10 @@ def get_temperature_from_weather_server():
         response = requests.get("https://api.openweathermap.org/data/2.5/weather?q=" + ciudad + "&appid=" + apiKey)
         temperature_data = response.json()["main"]["temp"] - 273.15
         try:
+            file = open('weather_bd.json', 'w')
+            data["Temperatura"] = round(temperature_data,2)
+            json.dump(data, file, indent=4)
+            file.close()
             return int(temperature_data)
         except ValueError:
             return None
@@ -224,15 +220,26 @@ def finalizarEspectaculo():
 
 
 def get_temperature_while(stop_event):
+    prevTemp = None
     while True:
         global stop
         global start
         global cancel
+        global auditorias
         if stop_event.is_set() or stop:
             break
         temperature = get_temperature_from_weather_server()
         if temperature is not None:
+            if prevTemp is None:
+                prevTemp = temperature
+            else:
+                if prevTemp != temperature:
+                    auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": "www.openweathermap.org", "Accion": "Cambio de temperatura", "Descripcion": "Ha cambiado la temperatura de " + str(prevTemp) + " a " + str(temperature) + "."})
+                    prevTemp = temperature
+            
             if temperature < 0:
+                auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": "www.openweathermap.org", "Accion": "Repliegue de espectaculo", "Descripcion": "Se detendra el espectaculo debido a las condiciones de clima, temperaturas demasiado bajas."})
+                sleep(1)
                 stop = True
                 cancel = True
                 if start:
@@ -243,6 +250,8 @@ def get_temperature_while(stop_event):
                     finalizarEspectaculo()
                 print("\n " + '\x1b[5;30;41m' + " CONDICIONES CLIMATICAS ADVERSAS - ESPECTACULO FINALIZADO " + '\x1b[0m' + "\n")
                 break
+        else:
+            auditorias.append({"Hora": datetime.today().strftime('%Y-%m-%d %H:%M:%S'), "IP": "www.openweathermap.org", "Accion": "Fallo en la temperatura", "Descripcion": "No funciona el servicio de reconocimiento de la temperatura."})
         sleep(3)
     return
 
@@ -545,96 +554,94 @@ if __name__ == "__main__":
 
     conexionWeatherDrone(ip_escucha,puerto_escucha, drones, stop_event_drone,stop_event_weather)
 
-    #try:
-    while True:
-        if start or stop:
-            break
-    if stop:
-        stop_event_drone.set()
-        stop_event_weather.set()
-        sys.exit()
-    count = 0
-    iter = None
-    while True:
-        if count > 0:
-            if stop:
-                sys.exit()
-            sleep(10)
-            if stop:
-                sys.exit()
-            file = open('figuras.json', "r+")
-            try:
-                figuras = json.load(file)
-            except ValueError:
-                print('\x1b[5;30;41m' + " Error en el formato del archivo de figuras " + '\x1b[0m')
-                sys.exit()
-            file.close()
-        if count == len(figuras["figuras"]):
-            bbDD = []
-            completed = []
-            for i in iter:
-                bbDD.append((i["ID"],(0,0)))
-            for i in range (0, 20):
-                for j in range (0, 20):
-                    if mapa[i][j][0]!=0:
-                        mapa[i][j] = (mapa[i][j][0],False)
-            stop_event_conexion = threading.Event()
-            comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
-            comp.start()
-            mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
-            clearMapa()
-            if stop:
-                sys.exit()
-            stop_event_conexion.set()
-            conexiones = []
-            break
-        else:
-            if stop:
-                sys.exit()
-            count2 = 0
-            for f in figuras["figuras"]:
-                if count2 < count:
-                    count2 += 1
-                    continue
-                count += 1
-                count2 += 1
-                iter = f["Drones"]
+    try:
+        while True:
+            if start or stop:
+                break
+        if stop:
+            stop_event_drone.set()
+            stop_event_weather.set()
+            sys.exit()
+        count = 0
+        iter = None
+        while True:
+            if count > 0:
+                if stop:
+                    sys.exit()
+                sleep(10)
+                if stop:
+                    sys.exit()
+                file = open('figuras.json', "r+")
+                try:
+                    figuras = json.load(file)
+                except ValueError:
+                    print('\x1b[5;30;41m' + " Error en el formato del archivo de figuras " + '\x1b[0m')
+                    sys.exit()
+                file.close()
+            if count == len(figuras["figuras"]):
                 bbDD = []
                 completed = []
                 for i in iter:
-                    coords = i["POS"].split(",")
-                    bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
-                if count == 1:
-                    stop_event_conexion = threading.Event()
-                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
-                    comp.start()
-                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,True,mapa)
-                    if stop:
-                        sys.exit()
-                    stop_event_conexion.set()
-                    conexiones = []
-                else:
-                    sleep(5)
-                    for i in range (0, 20):
-                        for j in range (0, 20):
-                            if mapa[i][j][0]!=0:
-                                mapa[i][j] = (mapa[i][j][0],False)
-                    stop_event_conexion = threading.Event()
-                    comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
-                    comp.start()
-                    mapa = comenzarEspectaculo(puerto_colas,bbDD,False,False,mapa)
-                    if stop:
-                        sys.exit()
-                    stop_event_conexion.set()
-                    conexiones = []
+                    bbDD.append((i["ID"],(0,0)))
+                for i in range (0, 20):
+                    for j in range (0, 20):
+                        if mapa[i][j][0]!=0:
+                            mapa[i][j] = (mapa[i][j][0],False)
+                stop_event_conexion = threading.Event()
+                comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
+                comp.start()
+                mapa = comenzarEspectaculo(puerto_colas,bbDD,True,False,mapa)
+                clearMapa()
+                if stop:
+                    sys.exit()
+                stop_event_conexion.set()
+                conexiones = []
+                break
+            else:
+                if stop:
+                    sys.exit()
+                count2 = 0
+                for f in figuras["figuras"]:
+                    if count2 < count:
+                        count2 += 1
+                        continue
+                    count += 1
+                    count2 += 1
+                    iter = f["Drones"]
+                    bbDD = []
+                    completed = []
+                    for i in iter:
+                        coords = i["POS"].split(",")
+                        bbDD.append((i["ID"],(int(coords[0]),int(coords[1]))))
+                    if count == 1:
+                        stop_event_conexion = threading.Event()
+                        comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
+                        comp.start()
+                        mapa = comenzarEspectaculo(puerto_colas,bbDD,False,True,mapa)
+                        if stop:
+                            sys.exit()
+                        stop_event_conexion.set()
+                        conexiones = []
+                    else:
+                        sleep(5)
+                        for i in range (0, 20):
+                            for j in range (0, 20):
+                                if mapa[i][j][0]!=0:
+                                    mapa[i][j] = (mapa[i][j][0],False)
+                        stop_event_conexion = threading.Event()
+                        comp = threading.Thread(target=comprobarConexiones, args=(stop_event_conexion,bbDD, ))
+                        comp.start()
+                        mapa = comenzarEspectaculo(puerto_colas,bbDD,False,False,mapa)
+                        if stop:
+                            sys.exit()
+                        stop_event_conexion.set()
+                        conexiones = []
 
-    stop_event_drone.set()
-    stop_event_weather.set()
-    sleep(3)
-    print("\n" + '\x1b[6;30;47m' + " ESPECTÁCULO FINALIZADO " + '\x1b[0m')
-    sys.exit()
-    '''
+        stop_event_drone.set()
+        stop_event_weather.set()
+        sleep(3)
+        print("\n" + '\x1b[6;30;47m' + " ESPECTÁCULO FINALIZADO " + '\x1b[0m')
+        sys.exit()
     except:
         print("\n " + '\x1b[5;30;41m' + " La comunicacion por Kafka ha fallado " + '\x1b[0m' + "\n")
         sys.exit()
-    '''
